@@ -1,7 +1,7 @@
 {
-  "name": "vorte",
-  "version": "1.0.0",
-  "description": "Vorte is a Cloudflare-based zero-knowledge cloud service with an offline-first Progressive Web App client for entrepreneurs and organizations in Finland.",
+  "name": "@sovereignbase/pwa",
+  "version": "0.0.0",
+  "description": "Pwaize your Web App.",
   "scripts": {
     "optimize": "npm run optimize:fonts && npm run optimize:images",
     "optimize:fonts": "node ./scripts/copyAndOptimizeFonts.js",
@@ -14,8 +14,7 @@
     "start": "npm install && npm run optimize && npm run dev",
     "deploy": "npm run optimize && npx wrangler deploy"
   },
-  "author": "Jori Lehtinen",
-  "license": "MPL-2.0",
+  "license": "Apache-2.0",
   "type": "module",
   "devDependencies": {
     "esbuild": "^0.27.0",
@@ -25,5 +24,8 @@
     "sharp": "^0.34.5",
     "svgo": "^4.0.0",
     "wrangler": "^4.50.0"
+  },
+  "dependencies": {
+    "lightningcss": "^1.33.0"
   }
 }
