@@ -9,6 +9,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import contentMinifierPlugin from "../scripts/plugins/contentMinifierPlugin.js";
 import type { PathLike } from "node:fs";
+import { BCP47LanguageTag } from "@sovereignbase/utils";
 
 export async function pwaize(config: PWAizeConfig) {
   await using temp = await mkdtempDisposable(join(tmpdir(), "pwaize-"));
@@ -65,6 +66,10 @@ export async function pwaize(config: PWAizeConfig) {
 }
 
 export type PWAizeConfig = {
+  defaultLanguage: BCP47LanguageTag;
+  canonicalLanguage: BCP47LanguageTag;
+  alterantiveLanguages: Array<BCP47LanguageTag>;
+
   /** Stylesheet included in the generated PWA. */
   stylesheet: string;
 
