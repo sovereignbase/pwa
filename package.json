@@ -16,17 +16,15 @@
   },
   "license": "Apache-2.0",
   "type": "module",
-  "devDependencies": {
-    "esbuild": "^0.27.0",
-    "fontmin": "^2.0.3",
-    "fs-extra": "^11.3.2",
-    "html-minifier-terser": "^7.2.0",
-    "sharp": "^0.34.5",
-    "svgo": "^4.0.0",
-    "wrangler": "^4.50.0"
-  },
   "dependencies": {
     "@sovereignbase/utils": "^2.0.0",
-    "lightningcss": "^1.33.0"
+    "lightningcss": "^1.33.0",
+    "terser": "^5.51.2",
+    "esbuild": "^0.28.2",
+    "fontmin": "^2.0.3",
+    "fs-extra": "^11.4.0",
+    "html-minifier-terser": "^7.2.0",
+    "sharp": "^0.35.4",
+    "svgo": "^4.1.0"
   }
 }

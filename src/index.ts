@@ -66,13 +66,18 @@ export async function pwaize(config: PWAizeConfig) {
 
 export type PWAizeConfig = {
   /** Stylesheet included in the generated PWA. */
-  stylesheet: PathLike | FileHandle;
+  stylesheet: string;
 
   /** Application entrypoint included in the generated PWA. */
-  entrypoint: PathLike | FileHandle;
+  entrypoint: string;
 
   /** Directory where the generated PWA files are written. */
   outDir: PathLike | FileHandle;
+
+  /** Copied in to outDir root, referencable in code by relative url `/${dirName}*` */
+  fontDir?: PathLike | FileHandle;
+  /** Bundled in to outDir with splitting referencable in code by relative url `/${dirName}*` */
+  i18nDir?: PathLike | FileHandle;
 
   /** Service Worker startup behavior. */
   serviceWorker?: {
