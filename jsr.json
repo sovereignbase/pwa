@@ -4,11 +4,6 @@
   "version": "1.0.3",
   "exports": "./src/index.ts",
   "publish": {
-    "include": [
-      "package.json",
-      "src/**/*.ts",
-      "README.md",
-      "LICENSE"
-    ]
+    "include": ["package.json", "src/**/*.ts", "README.md", "LICENSE"]
   }
 }
