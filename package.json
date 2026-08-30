@@ -48,8 +48,7 @@
     "test:runtime:node": "node test/runtimes/run.mjs",
     "test:runtime:bun": "bun test/runtimes/run.mjs",
     "test:e2e": "playwright test --config test/playwright.config.ts",
-    "prepare": "husky",
-    "prepublishOnly": "npm test"
+    "prepare": "husky"
   },
   "dependencies": {
     "@sovereignbase/bytecodec": "^1.7.0",
