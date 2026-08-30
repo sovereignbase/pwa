@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.3](https://github.com/sovereignbase/pwa/compare/v1.0.2...v1.0.3) (2026-08-30)
+
+
+### Bug Fixes
+
+* handle offline worker refreshes ([edebf21](https://github.com/sovereignbase/pwa/commit/edebf21caceb079e9d61f00f6cc66724790225b3))
+
 ## [1.0.2](https://github.com/sovereignbase/pwa/compare/v1.0.1...v1.0.2) (2026-08-30)
 
 
