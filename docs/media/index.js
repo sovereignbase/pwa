@@ -26,6 +26,12 @@ await pwaize({
     en: 'An offline-first PWA build example.',
     fi: 'Offline-first-PWA-build-esimerkki.',
   },
+  distribution: {
+    android: {},
+    build: 1,
+    id: 'dev.sovereignbase.pwa.example',
+    version: '1.0.0',
+  },
   entrypoint: resolve(exampleDirectory, 'entrypoint.js'),
   i18nDir: resolve(exampleDirectory, 'i18n'),
   icons: {

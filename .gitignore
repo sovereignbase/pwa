@@ -16,6 +16,8 @@ playwright-report/
 
 .env
 .env.*.local
+*.jks
+*.keystore
 
 .DS_Store
 Thumbs.db

@@ -46,6 +46,12 @@ await pwaize({
     en: 'An offline-first example.',
     fi: 'Offline-first-esimerkki.',
   },
+  distribution: {
+    android: {},
+    build: 1,
+    id: 'com.example.pwa',
+    version: '1.0.0',
+  },
   entrypoint: './src/client/index.ts',
   i18nDir: './src/client/i18n',
   icons: {
@@ -111,6 +117,44 @@ document.querySelector('h1')!.textContent = content.title
 The non-literal import remains dynamic. Generated language modules are included
 in the Service Worker precache.
 
+## Android distribution
+
+Android support is opt-in. When `distribution.android` is absent, Bubblewrap is
+not loaded and no Android files are generated. An empty object enables a
+deterministic Trusted Web Activity project at `<outDir>/android/project`:
+
+```sh
+npm install --save-dev @bubblewrap/core
+```
+
+```ts
+distribution: {
+  android: {
+    package: 'com.example.pwa',
+    sha256CertFingerprints: ['AA:BB:CC:...'],
+  },
+  build: 1,
+  id: 'com.example.pwa',
+  version: '1.0.0',
+}
+```
+
+The generated default-language web manifest supplies the Android name, launch
+URL, colors, display mode, and icons. Its public `origin` and icon URLs must be
+reachable while Bubblewrap generates the project. Certificate fingerprints
+also produce `web/.well-known/assetlinks.json`, which is included in the web
+precache.
+
+Set both `android.androidSdkPath` and `android.jdkPath` to additionally run the
+Gradle release builds. Project generation, compilation, and signing are
+separate steps. Without a keystore, the results are
+`app-release-unsigned.apk` and `app-release-unsigned.aab`. To sign both files,
+set `android.keystore`, optionally set `android.keyAlias`, and provide
+`ANDROID_KEYSTORE_PASSWORD` and `ANDROID_KEY_PASSWORD` in the build environment.
+Passwords are never accepted in config or written to output. With Play App
+Signing, this keystore should contain the replaceable upload key; Google keeps
+the long-lived app signing key.
+
 ## Output
 
 ```text
@@ -125,6 +169,11 @@ web/
 ├── assets/...
 ├── i18n/*.js
 └── @sovereignbase/pwa/pwaize-build-id.txt
+
+android/                       # only with distribution.android
+├── project/                   # generated Bubblewrap project
+├── app-release-unsigned.apk   # with Android SDK and JDK
+└── app-release-unsigned.aab
 ```
 
 The root installer and manifest use `defaultLanguage`. Each language also gets

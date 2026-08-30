@@ -2,14 +2,22 @@ import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { pwaize, type PWAizeConfig } from '../../src/index.js'
+
+const buildAndroidDistribution = vi.hoisted(() => vi.fn())
+
+vi.mock('../../src/distribution/android/index.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  buildAndroidDistribution,
+}))
 
 describe('pwaize', () => {
   let output: string
   let project: string
 
   beforeEach(async () => {
+    buildAndroidDistribution.mockClear()
     const directory = await mkdtemp(join(tmpdir(), 'pwa-integration-'))
     output = join(directory, 'output')
     project = join(directory, 'project')
@@ -122,9 +130,34 @@ describe('pwaize', () => {
     expect(existsSync(join(output, 'web', '_headers'))).toBe(false)
     expect(existsSync(join(output, 'web', 'assets'))).toBe(false)
     expect(existsSync(join(output, 'web', 'fi'))).toBe(false)
+    expect(existsSync(join(output, 'android'))).toBe(false)
+    expect(buildAndroidDistribution).not.toHaveBeenCalled()
     expect(
       await readFile(join(output, 'web', 'ServiceWorker'), 'utf8')
     ).toContain('/en/manifest.webmanifest')
+  })
+
+  it('builds Android only when its distribution feature is configured', async () => {
+    const config = configuration(project, output)
+    config.distribution = {
+      android: {},
+      build: 1,
+      id: 'dev.example.pwa',
+      version: '1.0.0',
+    }
+
+    await pwaize(config)
+
+    expect(buildAndroidDistribution).toHaveBeenCalledOnce()
+    expect(buildAndroidDistribution).toHaveBeenCalledWith(
+      expect.objectContaining({
+        android: {},
+        defaultLanguage: 'en',
+        origin: 'https://example.test',
+        outDirectory: output,
+        webDirectory: join(output, 'web'),
+      })
+    )
   })
 
   it('falls back from requested language to default language and then empty', async () => {

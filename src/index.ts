@@ -7,10 +7,14 @@ import { baseSecurityHeaders } from './baseSecurityHeaders/index.js'
 import { buildScriptDirectory } from './buildScriptDirectory/index.js'
 import { contentBuildId } from './contentBuildId/index.js'
 import { contentSecurityPolicy } from './contentSecurityPolicy/index.js'
-import { documentMarkup } from './htmlDocument/index.js'
+import {
+  buildAndroidDistribution,
+  type DistributionOptions,
+} from './distribution/android/index.js'
 import { functionExpression } from './functionExpression/index.js'
 import { globRule } from './globRule/index.js'
 import { headersMarkup } from './headersMarkup/index.js'
+import { documentMarkup } from './htmlDocument/index.js'
 import { localizeConfig } from './localizeConfig/index.js'
 import minifyCss from './minifyCss/index.js'
 import minifyHtml from './minifyHtml/index.js'
@@ -23,6 +27,11 @@ import {
   type WebManifestScreenshot,
   type WebManifestShortcut,
 } from './webManifest/index.js'
+
+export type {
+  AndroidDistributionOptions,
+  DistributionOptions,
+} from './distribution/android/index.js'
 
 /**
  * Builds a localized, offline-first PWA into `<outDir>/web`.
@@ -142,6 +151,17 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
     )
   }
 
+  if (config.distribution?.android !== undefined) {
+    await buildAndroidDistribution({
+      android: config.distribution.android,
+      defaultLanguage: config.defaultLanguage,
+      distribution: config.distribution,
+      origin: documentOptions[config.defaultLanguage].seo.jsonLD.site.url,
+      outDirectory: config.outDir.toString(),
+      webDirectory: outputDirectory,
+    })
+  }
+
   const generatedFiles = (await publicFiles(outputDirectory)).filter(
     (url) => url !== serviceWorkerPath && url !== buildIdUrl
   )
@@ -235,6 +255,7 @@ export type PWAizeConfig = {
   colorScheme?: Localized<'dark' | 'dark light' | 'light' | 'light dark'>
   defaultLanguage: BCP47LanguageTag
   description: Localized<string>
+  distribution?: DistributionOptions
   entrypoint: PathLike
   headMarkup?: Localized<string>
   i18nDir?: PathLike

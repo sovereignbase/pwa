@@ -14,7 +14,6 @@ if (build.status !== 0) {
 
 const publicDirectory = resolve('example/dist/web')
 const apiValues = new Map()
-let idleTimer
 const headerRules = parseHeaderRules(
   readFileSync(join(publicDirectory, '_headers'), 'utf8')
 )
@@ -28,7 +27,6 @@ const contentTypes = {
 }
 
 const server = createServer((request, response) => {
-  scheduleShutdown()
   const url = new URL(request.url ?? '/', 'http://127.0.0.1:4173')
   if (url.pathname === '/api/value') {
     const value = (apiValues.get(url.href) ?? 0) + 1
@@ -79,18 +77,15 @@ const server = createServer((request, response) => {
 })
 
 for (const signal of ['SIGINT', 'SIGTERM']) {
-  process.once(signal, () => server.close(() => process.exit()))
+  process.once(signal, () => {
+    server.close(() => process.exit())
+    server.closeAllConnections()
+  })
 }
 
 server.listen(4173, '127.0.0.1', () => {
-  scheduleShutdown()
   console.log('PWA test server listening on http://127.0.0.1:4173')
 })
-
-function scheduleShutdown() {
-  clearTimeout(idleTimer)
-  idleTimer = setTimeout(() => server.close(() => process.exit()), 5_000)
-}
 
 function parseHeaderRules(source) {
   const rules = []

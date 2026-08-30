@@ -57,6 +57,7 @@
     "terser": "^5.51.2"
   },
   "devDependencies": {
+    "@bubblewrap/core": "^1.25.0",
     "@commitlint/cli": "^21.2.2",
     "@commitlint/config-conventional": "^21.2.2",
     "@playwright/test": "^1.62.1",
@@ -70,6 +71,14 @@
     "typedoc": "^0.28.20",
     "typescript": "^5.9.3",
     "vitest": "^4.1.11"
+  },
+  "peerDependencies": {
+    "@bubblewrap/core": ">=1.25.0"
+  },
+  "peerDependenciesMeta": {
+    "@bubblewrap/core": {
+      "optional": true
+    }
   },
   "repository": {
     "type": "git",

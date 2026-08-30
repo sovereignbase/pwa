@@ -34,6 +34,13 @@ test('installs the Service Worker, renders the app, and works offline', async ({
   context,
   page,
 }) => {
+  const runtimeErrors: string[] = []
+  context.on('serviceworker', (worker) => {
+    worker.on('console', (message) => {
+      if (message.type() === 'error') runtimeErrors.push(message.text())
+    })
+  })
+  page.on('pageerror', (error) => runtimeErrors.push(error.message))
   await page.goto('/fi/')
   await page.waitForFunction(
     () =>
@@ -79,6 +86,7 @@ test('installs the Service Worker, renders the app, and works offline', async ({
   )
   await expect(page.locator('h1')).toHaveText('Offline-first-esimerkki')
   await context.setOffline(false)
+  expect(runtimeErrors).toEqual([])
 })
 
 test('lets bypass globs go directly to the network', async ({ page }) => {
