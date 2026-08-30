@@ -13,20 +13,25 @@ if (build.status !== 0) {
 }
 
 const publicDirectory = resolve('example/dist/web')
-let apiValue = 0
+const apiValues = new Map()
+let idleTimer
 const contentTypes = {
   '.html': 'text/html;charset=UTF-8',
+  '.js': 'text/javascript;charset=UTF-8',
   '.json': 'application/json;charset=UTF-8',
   '.svg': 'image/svg+xml;charset=UTF-8',
   '.txt': 'text/plain;charset=UTF-8',
   '.webmanifest': 'application/manifest+json;charset=UTF-8',
 }
 
-createServer((request, response) => {
+const server = createServer((request, response) => {
+  scheduleShutdown()
   const url = new URL(request.url ?? '/', 'http://127.0.0.1:4173')
   if (url.pathname === '/api/value') {
+    const value = (apiValues.get(url.href) ?? 0) + 1
+    apiValues.set(url.href, value)
     response.setHeader('content-type', 'application/json')
-    response.end(JSON.stringify({ value: ++apiValue }))
+    response.end(JSON.stringify({ value }))
     return
   }
 
@@ -51,7 +56,9 @@ createServer((request, response) => {
 
   response.setHeader(
     'content-type',
-    contentTypes[extname(path)] ?? 'application/octet-stream'
+    url.pathname === '/ServiceWorker'
+      ? 'text/javascript;charset=UTF-8'
+      : (contentTypes[extname(path)] ?? 'application/octet-stream')
   )
   if (
     url.pathname === '/ServiceWorker' ||
@@ -60,6 +67,18 @@ createServer((request, response) => {
     response.setHeader('cache-control', 'no-store')
   }
   createReadStream(path).pipe(response)
-}).listen(4173, '127.0.0.1', () => {
+})
+
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.once(signal, () => server.close(() => process.exit()))
+}
+
+server.listen(4173, '127.0.0.1', () => {
+  scheduleShutdown()
   console.log('PWA test server listening on http://127.0.0.1:4173')
 })
+
+function scheduleShutdown() {
+  clearTimeout(idleTimer)
+  idleTimer = setTimeout(() => server.close(() => process.exit()), 5_000)
+}

@@ -1,58 +1,25 @@
 import type { BCP47LanguageTag, OpenGraphLocale } from '@sovereignbase/utils'
-export type URLPath = `/${string}`
+
 export type HTTPSUrl = `https://${string}`
+export type URLPath = `/${string}`
 
 export interface DocumentMarkupOptions {
-  /** Language of the document. */
-  language: BCP47LanguageTag
-
-  /** Document title. */
-  title: string
-
-  /** Application name used by installed/mobile browser UI. */
   applicationName: string
-
-  /** Theme color used by supported browser chrome. */
-  themeColor: string
-
-  /** CSP nonce applied to inline styles and scripts. */
-  nonce: string
-
-  /** Complete markup rendered inside `<body>`. */
-  bodyMarkup: string
-
-  /** Additional markup inserted into `<head>`. */
-  headMarkup?: string
-
-  /** Critical CSS rendered inline during initial document load. */
-  stylesheet?: string
-
-  /** JavaScript module rendered inline into the document. */
-  entrypoint?: string
-
-  /** Favicon URL. */
-  iconUrl?: URLPath
-
-  /** Apple touch icon URL. */
-  appleTouchIconUrl?: URLPath
-
-  /** Safari pinned-tab mask icon URL. */
-  maskIconUrl?: URLPath
-
-  /** Web App Manifest URL. */
-  manifestUrl?: URLPath
-
-  /** Safari pinned-tab icon color. Defaults to `themeColor`. */
-  maskIconColor?: string
-
-  /** Preferred document color schemes. */
-  colorScheme?: 'light' | 'dark' | 'light dark' | 'dark light'
-
-  /** Apple standalone status bar appearance. */
   appleStatusBarStyle?: 'default' | 'black' | 'black-translucent'
-
-  /** Search and social metadata rendered with the SEO component builders. */
+  appleTouchIconUrl?: URLPath
+  bodyMarkup: string
+  colorScheme?: 'light' | 'dark' | 'light dark' | 'dark light'
+  entrypoint?: string
+  headMarkup?: string
+  iconUrl?: URLPath
+  language: BCP47LanguageTag
+  manifestUrl?: URLPath
+  maskIconColor?: string
+  maskIconUrl?: URLPath
   seo: DocumentSEO
+  stylesheet?: string
+  themeColor: string
+  title: string
 }
 
 export interface DocumentSEO {
@@ -62,63 +29,60 @@ export interface DocumentSEO {
   twitter: TwitterMarkupOptions
 }
 
-export interface LanguageLinksMarkupOptions {
-  host: `${string}.${string}`
-  defaultLanguage: BCP47LanguageTag
-  canonicalLanguage: BCP47LanguageTag
-  alternateLanguages: BCP47LanguageTag[]
-  pathSuffix?: '' | `/${string}`
-}
-
-export interface OpenGraphMarkupOptions {
-  locale: OpenGraphLocale
-  siteName: string
-  title: string
-  description: string
-  url: HTTPSUrl
-  imageUrl: string
-  imageAlt: string
-  imageWidth?: number
-  imageHeight?: number
-}
-
-export interface TwitterMarkupOptions {
-  title: string
-  description: string
-  url: HTTPSUrl
-  imageUrl: string
-  imageAlt: string
-  site: `@${string}`
-  creator: `@${string}`
-}
-
 export interface JSONLDMarkup {
+  application: {
+    applicationCategory?: string
+    browserRequirements?: string
+    featureList?: string[]
+    inLanguage: BCP47LanguageTag[]
+    name: string
+    operatingSystem?: string
+    screenshot?: HTTPSUrl[]
+    url: HTTPSUrl
+  }
+  organization: {
+    logo: HTTPSUrl
+    name: string
+    url: HTTPSUrl
+  }
+  page: {
+    description: string
+    inLanguage: BCP47LanguageTag
+    name: string
+    url: HTTPSUrl
+  }
   site: {
     name: string
     url: HTTPSUrl
   }
+}
 
-  application: {
-    name: string
-    url: HTTPSUrl
-    inLanguage: BCP47LanguageTag[]
-    applicationCategory?: string
-    operatingSystem?: string
-    browserRequirements?: string
-    featureList?: string[]
-    screenshot?: HTTPSUrl[]
-  }
+export interface LanguageLinksMarkupOptions {
+  alternateLanguages: BCP47LanguageTag[]
+  canonicalLanguage: BCP47LanguageTag
+  defaultLanguage: BCP47LanguageTag
+  host: `${string}.${string}`
+  pathSuffix?: '' | `/${string}`
+}
 
-  page: {
-    name: string
-    description: string
-    url: HTTPSUrl
-    inLanguage: BCP47LanguageTag
-  }
+export interface OpenGraphMarkupOptions {
+  description: string
+  imageAlt: string
+  imageHeight?: number
+  imageUrl: string
+  imageWidth?: number
+  locale: OpenGraphLocale
+  siteName: string
+  title: string
+  url: HTTPSUrl
+}
 
-  organization: {
-    name: string
-    url: HTTPSUrl
-    logo: HTTPSUrl
-  }
+export interface TwitterMarkupOptions {
+  creator: `@${string}`
+  description: string
+  imageAlt: string
+  imageUrl: string
+  site: `@${string}`
+  title: string
+  url: HTTPSUrl
 }

@@ -25,6 +25,15 @@ describe('minifiers', () => {
 
     expect(output).toBe('globalThis.result=42;')
     expect(output).not.toContain('\n')
+    await expect(
+      minifyJs(
+        {
+          source:
+            'const unused="remove-me";if(false)console.log(unused);globalThis.result=VALUE',
+        },
+        { define: { VALUE: '42' }, passes: 2 }
+      )
+    ).resolves.toBe(output)
   })
 
   it('bundles JavaScript file paths and URLs with default options', async () => {
@@ -50,6 +59,8 @@ describe('minifiers', () => {
       '@import "./base.css"; body { color: var(--accent); margin: 0px 0px 0px 0px; }'
     )
 
+    const expected = ':root{--accent:red}body{color:var(--accent);margin:0}'
+    await expect(minifyCss(entrypoint)).resolves.toBe(expected)
     await expect(minifyCss(entrypoint)).resolves.toBe(
       ':root{--accent:red}body{color:var(--accent);margin:0}'
     )
@@ -65,5 +76,11 @@ describe('minifiers', () => {
     expect(output).not.toContain('remove')
     expect(output).not.toContain('unused')
     expect(output).toContain('<style>body{margin:0}</style>')
+    await expect(
+      minifyHtml(`<!DOCTYPE html>
+      <!-- remove -->
+      <html><head><style>body { margin: 0px; }</style></head>
+      <body><input disabled="disabled"><script>const unused = 1; window.ready = true;</script></body></html>`)
+    ).resolves.toBe(output)
   })
 })

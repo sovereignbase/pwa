@@ -1,28 +1,27 @@
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { pwaize, type PWAizeConfig } from '../../src/index.js'
 
 describe('pwaize', () => {
-  let directory: string
-  let project: string
   let output: string
+  let project: string
 
   beforeEach(async () => {
-    directory = await mkdtemp(join(tmpdir(), 'pwa-integration-'))
-    project = join(directory, 'project')
+    const directory = await mkdtemp(join(tmpdir(), 'pwa-integration-'))
     output = join(directory, 'output')
-    await writeFileTree(project)
+    project = join(directory, 'project')
+    await writeProject(project)
   })
 
-  it('builds localized installers, manifests, assets, i18n, and Service Worker', async () => {
+  it('builds localized installers, manifests, copied directories, and the worker', async () => {
     const config = configuration(project, output)
     config._headersFile = true
-    config.minifyPasses = 1
     config.assetsDir = join(project, 'assets')
     config.i18nDir = join(project, 'i18n')
+    config.minifyPasses = 1
     config.serviceWorker = {
       bypass: [
         '/api/**',
@@ -43,7 +42,6 @@ describe('pwaize', () => {
     await pwaize(config)
 
     const web = join(output, 'web')
-    const root = await readFile(join(web, 'index.html'), 'utf8')
     const english = await readFile(join(web, 'en', 'index.html'), 'utf8')
     const finnish = await readFile(join(web, 'fi', 'index.html'), 'utf8')
     const worker = await readFile(join(web, 'ServiceWorker'), 'utf8')
@@ -52,43 +50,55 @@ describe('pwaize', () => {
       'utf8'
     )
 
-    expect(root).toBe(english)
-    expect(finnish).toContain('<html lang=fi>')
+    expect(await readFile(join(web, 'index.html'), 'utf8')).toBe(english)
     expect(english.split(/\r?\n/)).toHaveLength(1)
     expect(english).toContain('navigator.serviceWorker.register')
     expect(english).not.toContain('background:#fff')
+    expect(finnish).toContain('<html lang=fi>')
     expect(
       JSON.parse(await readFile(join(web, 'manifest.webmanifest'), 'utf8'))
-    ).toMatchObject({ lang: 'en', start_url: '/en/' })
+    ).toMatchObject({ lang: 'en', start_url: '/en' })
     expect(
       JSON.parse(
         await readFile(join(web, 'fi', 'manifest.webmanifest'), 'utf8')
       )
-    ).toMatchObject({ lang: 'fi', start_url: '/fi/' })
+    ).toMatchObject({ lang: 'fi', start_url: '/fi' })
     expect(
       await readFile(join(web, 'assets', 'nested', 'asset.txt'), 'utf8')
     ).toBe('asset')
-    expect(await readFile(join(web, 'i18n', 'fi.json'), 'utf8')).toContain(
-      'Hei'
+    expect(await readFile(join(web, 'i18n', 'fi.js'), 'utf8')).toContain('Hei')
+    expect(await readFile(join(web, 'i18n', 'metadata.json'), 'utf8')).toBe(
+      '{"format":1}'
     )
+    expect(existsSync(join(web, 'i18n', 'content.d.js'))).toBe(false)
     expect(await readFile(join(web, '_headers'), 'utf8')).toContain(
       'Cache-Control: no-cache'
     )
-    expect(buildId).toMatch(/^[0-9a-f-]{36}$/)
+    expect(buildId).toMatch(/^[0-9a-f]{64}$/)
     expect(worker.split(/\r?\n/)).toHaveLength(1)
     expect(worker).toContain(buildId)
     expect(worker).toContain('registration.update')
     expect(worker).toContain('clients.claim')
     expect(worker).toContain('/extra-resource')
     expect(worker).toContain('/assets/nested/asset.txt')
+    expect(worker).toContain('/i18n/')
     expect(worker).toContain('background:#fff')
     expect(worker).toContain('dataset.integration')
   })
 
-  it('builds with defaults and without optional directories or headers', async () => {
+  it('builds with scalar defaults and without optional output', async () => {
     const config = configuration(project, output)
     config.alternateLanguages = []
-    config.languages = { en: config.languages.en }
+    config.application = undefined
+    config.backgroundColor = undefined
+    config.bodyMarkup = undefined
+    config.colorScheme = undefined
+    config.headMarkup = undefined
+    config.manifest = undefined
+    config.organization = undefined
+    config.shortName = undefined
+    config.socialImage.height = undefined
+    config.socialImage.width = undefined
 
     await pwaize(config)
 
@@ -100,116 +110,144 @@ describe('pwaize', () => {
     ).toContain('/en/manifest.webmanifest')
   })
 
-  it('rejects a missing localized configuration', async () => {
+  it('falls back from requested language to default language and then empty', async () => {
     const config = configuration(project, output)
-    delete config.languages.fi
+    config.applicationName = { en: 'Default name' }
+    config.description = {}
+    config.origin = {}
+    config.title = { en: 'Default title', fi: 'Suomenkielinen otsikko' }
 
-    await expect(pwaize(config)).rejects.toThrow(
-      'Missing PWA configuration for language "fi"'
+    await pwaize(config)
+
+    const manifest = JSON.parse(
+      await readFile(join(output, 'web', 'fi', 'manifest.webmanifest'), 'utf8')
     )
+    expect(manifest).toMatchObject({ description: '', name: 'Default name' })
+    expect(
+      await readFile(join(output, 'web', 'fi', 'index.html'), 'utf8')
+    ).toContain('<title>Suomenkielinen otsikko</title>')
+  })
+
+  it('supports arrow hooks and an empty localized icon', async () => {
+    const config = configuration(project, output)
+    config.icons.icon512 = {}
+    config.serviceWorker = { initialize: () => undefined }
+
+    await pwaize(config)
+
+    const worker = await readFile(join(output, 'web', 'ServiceWorker'), 'utf8')
+    expect(worker).toContain('void 0')
+  })
+
+  it('keeps the build ID stable until build content changes', async () => {
+    const config = configuration(project, output)
+    config.minifyPasses = 1
+    const buildIdPath = join(
+      output,
+      'web',
+      '@sovereignbase',
+      'pwa',
+      'pwaize-build-id.txt'
+    )
+
+    await pwaize(config)
+    const first = await readFile(buildIdPath, 'utf8')
+    await pwaize(config)
+    expect(await readFile(buildIdPath, 'utf8')).toBe(first)
+
+    await writeFile(
+      join(project, 'entrypoint.js'),
+      'document.documentElement.dataset.integration="changed"'
+    )
+    await pwaize(config)
+    expect(await readFile(buildIdPath, 'utf8')).not.toBe(first)
   })
 })
 
-async function writeFileTree(project: string): Promise<void> {
-  const { mkdir } = await import('node:fs/promises')
+async function writeProject(project: string): Promise<void> {
   await mkdir(join(project, 'assets', 'nested'), { recursive: true })
-  await mkdir(join(project, 'i18n'), { recursive: true })
+  await mkdir(join(project, 'i18n', 'shared'), { recursive: true })
   await writeFile(
     join(project, 'entrypoint.js'),
-    'const dead="remove";if(false)console.log(dead);document.documentElement.dataset.integration="ready"'
+    'const language=document.documentElement.lang;const content=(await import(`/i18n/${language}.js`)).default;document.documentElement.dataset.integration=content.hello'
   )
   await writeFile(
     join(project, 'stylesheet.css'),
     'body { background: #ffffff; margin: 0px; }'
   )
   await writeFile(join(project, 'assets', 'nested', 'asset.txt'), 'asset')
-  await writeFile(join(project, 'i18n', 'en.json'), '{"hello":"Hello"}')
-  await writeFile(join(project, 'i18n', 'fi.json'), '{"hello":"Hei"}')
+  await writeFile(
+    join(project, 'i18n', 'en.ts'),
+    'import{hello}from"./shared/hello.ts";export default {hello} as const'
+  )
+  await writeFile(
+    join(project, 'i18n', 'fi.ts'),
+    'export default {hello:"Hei"} as const'
+  )
+  await writeFile(
+    join(project, 'i18n', 'content.d.ts'),
+    'declare const content: {readonly hello: string}; export default content'
+  )
+  await writeFile(join(project, 'i18n', 'metadata.json'), '{"format":1}')
+  await writeFile(
+    join(project, 'i18n', 'shared', 'hello.ts'),
+    'export const hello="Hello" as const'
+  )
 }
 
 function configuration(project: string, outDir: string): PWAizeConfig {
   return {
-    defaultLanguage: 'en',
-    canonicalLanguage: 'en',
     alternateLanguages: ['fi'],
-    languages: {
-      en: localized('en', 'en_US', 'English'),
-      fi: localized('fi', 'fi_FI', 'Suomi'),
+    application: {
+      browserRequirements: 'Modern browser',
+      category: 'BusinessApplication',
+      featureList: ['Offline'],
+      operatingSystem: 'Any',
     },
-    stylesheet: join(project, 'stylesheet.css'),
+    applicationName: { en: 'Integration' },
+    backgroundColor: '#ffffff',
+    bodyMarkup: { en: '<main>English</main>', fi: '<main>Suomi</main>' },
+    canonicalLanguage: 'en',
+    colorScheme: 'light',
+    defaultLanguage: 'en',
+    description: { en: 'English', fi: 'Suomi' },
     entrypoint: join(project, 'entrypoint.js'),
-    outDir,
-  }
-}
-
-function localized(
-  code: 'en' | 'fi',
-  locale: 'en_US' | 'fi_FI',
-  title: string
-): PWAizeConfig['languages'][string] {
-  const url = `https://example.test/${code}` as const
-  return {
-    document: {
-      title,
-      applicationName: 'Integration',
-      themeColor: '#123456',
-      nonce: 'integration',
-      bodyMarkup: `<main>${title}</main>`,
-      seo: {
-        jsonLD: {
-          site: { name: 'Integration', url: 'https://example.test' as const },
-          application: {
-            name: 'Integration',
-            url: 'https://example.test' as const,
-            inLanguage: ['en', 'fi'],
-          },
-          page: {
-            name: title,
-            description: title,
-            url,
-            inLanguage: code,
-          },
-          organization: {
-            name: 'Integration',
-            url: 'https://example.test' as const,
-            logo: 'https://example.test/logo.png' as const,
-          },
-        },
-        languageLinks: {
-          host: 'example.test' as const,
-          defaultLanguage: 'en',
-          canonicalLanguage: code,
-          alternateLanguages: ['en', 'fi'],
-        },
-        openGraph: {
-          locale,
-          siteName: 'Integration',
-          title,
-          description: title,
-          url,
-          imageUrl: '/image.png',
-          imageAlt: 'Image',
-        },
-        twitter: {
-          title,
-          description: title,
-          url,
-          imageUrl: '/image.png',
-          imageAlt: 'Image',
-          site: '@integration' as const,
-          creator: '@integration' as const,
-        },
-      },
+    headMarkup: '<meta name="integration" content="true">',
+    icons: {
+      appleTouchIconUrl: '/apple.png',
+      icon192: '/icon.png',
+      icon512: '/icon.png',
+      iconUrl: '/favicon.png',
+      maskableIcon512: '/maskable.png',
+      maskIconUrl: '/mask.svg',
     },
     manifest: {
-      name: title,
-      shortName: title,
-      description: title,
-      startUrl: `/${code}/` as const,
-      themeColor: '#123456',
-      icon192: '/icon.png' as const,
-      icon512: '/icon.png' as const,
-      maskableIcon512: '/icon.png' as const,
+      categories: ['business'],
+      display: 'standalone',
+      id: '/app',
+      orientation: 'portrait',
+      scope: '/',
+      screenshots: [{ src: '/shot.png', sizes: '1280x720' }],
+      shortcuts: [{ name: 'Home', url: '/' }],
     },
+    openGraphLocale: { en: 'en_US', fi: 'fi_FI' },
+    organization: {
+      logoUrl: 'https://example.test/logo.png',
+      name: 'Organization',
+      url: 'https://example.test',
+    },
+    origin: 'https://example.test',
+    outDir,
+    shortName: 'Integration',
+    socialImage: {
+      alt: { en: 'Image', fi: 'Kuva' },
+      height: 320,
+      url: 'https://example.test/image.png',
+      width: 640,
+    },
+    stylesheet: join(project, 'stylesheet.css'),
+    themeColor: '#123456',
+    title: { en: 'English', fi: 'Suomi' },
+    twitter: { creator: '@integration', site: '@integration' },
   }
 }

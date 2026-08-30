@@ -1,8 +1,14 @@
 import assert from 'node:assert/strict'
+import { createRequire } from 'node:module'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pwaize } from '../../dist/index.js'
+
+assert.equal(
+  typeof createRequire(import.meta.url)('../../dist/index.cjs').pwaize,
+  'function'
+)
 
 const root = await mkdtemp(join(tmpdir(), 'pwa-runtime-'))
 const source = join(root, 'source')
@@ -13,17 +19,36 @@ try {
   await mkdir(join(source, 'i18n'), { recursive: true })
   await writeFile(
     join(source, 'entrypoint.js'),
-    'document.documentElement.dataset.runtime="compatible"'
+    'const language=document.documentElement.lang;const content=(await import(`/i18n/${language}.js`)).default;document.documentElement.dataset.runtime=content.status'
   )
   await writeFile(join(source, 'stylesheet.css'), 'body { margin: 0px; }')
   await writeFile(join(source, 'assets', 'asset.txt'), 'asset')
-  await writeFile(join(source, 'i18n', 'en.json'), '{"hello":"Hello"}')
+  await writeFile(
+    join(source, 'i18n', 'en.ts'),
+    'export default {status:"compatible"} as const'
+  )
 
   await pwaize({
     defaultLanguage: 'en',
     canonicalLanguage: 'en',
     alternateLanguages: [],
-    languages: { en: localizedEnglish() },
+    applicationName: 'Runtime compatibility',
+    bodyMarkup: '<main>Runtime compatibility</main>',
+    description: 'Runtime compatibility',
+    icons: {
+      icon192: '/logo.png',
+      icon512: '/logo.png',
+      maskableIcon512: '/logo.png',
+    },
+    openGraphLocale: 'en_US',
+    origin: 'https://example.test',
+    socialImage: {
+      alt: 'Logo',
+      url: 'https://example.test/logo.png',
+    },
+    themeColor: '#123456',
+    title: 'Runtime compatibility',
+    twitter: { creator: '@runtime', site: '@runtime' },
     stylesheet: join(source, 'stylesheet.css'),
     entrypoint: join(source, 'entrypoint.js'),
     outDir: output,
@@ -45,80 +70,12 @@ try {
     await readFile(join(output, 'web', 'assets', 'asset.txt'), 'utf8'),
     'asset'
   )
-  assert.equal(
-    await readFile(join(output, 'web', 'i18n', 'en.json'), 'utf8'),
-    '{"hello":"Hello"}'
+  assert.match(
+    await readFile(join(output, 'web', 'i18n', 'en.js'), 'utf8'),
+    /status:"compatible"/
   )
 
   console.log(`${process.versions.bun ? 'Bun' : 'Node'} runtime compatible`)
 } finally {
   await rm(root, { force: true, recursive: true })
-}
-
-function localizedEnglish() {
-  const url = 'https://example.test/en'
-  return {
-    document: {
-      title: 'Runtime compatibility',
-      applicationName: 'Runtime compatibility',
-      themeColor: '#123456',
-      nonce: 'runtime',
-      bodyMarkup: '<main>Runtime compatibility</main>',
-      seo: {
-        jsonLD: {
-          site: { name: 'Runtime', url: 'https://example.test' },
-          application: {
-            name: 'Runtime',
-            url: 'https://example.test',
-            inLanguage: ['en'],
-          },
-          page: {
-            name: 'Runtime',
-            description: 'Runtime',
-            url,
-            inLanguage: 'en',
-          },
-          organization: {
-            name: 'Runtime',
-            url: 'https://example.test',
-            logo: 'https://example.test/logo.png',
-          },
-        },
-        languageLinks: {
-          host: 'example.test',
-          defaultLanguage: 'en',
-          canonicalLanguage: 'en',
-          alternateLanguages: ['en'],
-        },
-        openGraph: {
-          locale: 'en_US',
-          siteName: 'Runtime',
-          title: 'Runtime',
-          description: 'Runtime',
-          url,
-          imageUrl: '/logo.png',
-          imageAlt: 'Logo',
-        },
-        twitter: {
-          title: 'Runtime',
-          description: 'Runtime',
-          url,
-          imageUrl: '/logo.png',
-          imageAlt: 'Logo',
-          site: '@runtime',
-          creator: '@runtime',
-        },
-      },
-    },
-    manifest: {
-      name: 'Runtime',
-      shortName: 'Runtime',
-      description: 'Runtime',
-      startUrl: '/en/',
-      themeColor: '#123456',
-      icon192: '/logo.png',
-      icon512: '/logo.png',
-      maskableIcon512: '/logo.png',
-    },
-  }
 }

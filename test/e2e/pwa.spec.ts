@@ -19,7 +19,7 @@ test('generates a localized, indexed installer with complete SEO', async ({
   const manifest = await request.get('/fi/manifest.webmanifest')
   expect(await manifest.json()).toMatchObject({
     lang: 'fi',
-    start_url: '/fi/',
+    start_url: '/fi',
   })
 })
 
@@ -54,11 +54,16 @@ test('installs the Service Worker, renders the app, and works offline', async ({
 
 test('lets bypass globs go directly to the network', async ({ page }) => {
   await page.goto('/en/')
-  await page.waitForFunction(() => navigator.serviceWorker.controller !== null)
+  await page.waitForFunction(
+    () =>
+      navigator.serviceWorker.controller !== null &&
+      document.documentElement.dataset.ready === 'true'
+  )
 
   const values = await page.evaluate(async () => {
-    const first = await fetch('/api/value').then((response) => response.json())
-    const second = await fetch('/api/value').then((response) => response.json())
+    const url = `/api/value?test=${crypto.randomUUID()}`
+    const first = await fetch(url).then((response) => response.json())
+    const second = await fetch(url).then((response) => response.json())
     return [first.value, second.value]
   })
 

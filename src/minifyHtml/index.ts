@@ -1,8 +1,13 @@
 import { minify } from 'html-minifier-terser'
 
+const minifiedOutputs = new Map<string, string>()
+
 /** Minifies a complete HTML document, including inline CSS and JavaScript. */
 export default async function minifyHtml(source: string): Promise<string> {
-  return minify(source, {
+  const cached = minifiedOutputs.get(source)
+  if (cached !== undefined) return cached
+
+  const output = await minify(source, {
     collapseBooleanAttributes: true,
     collapseInlineTagWhitespace: true,
     collapseWhitespace: true,
@@ -30,4 +35,6 @@ export default async function minifyHtml(source: string): Promise<string> {
     sortClassName: true,
     useShortDoctype: true,
   })
+  minifiedOutputs.set(source, output)
+  return output
 }

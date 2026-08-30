@@ -143,7 +143,6 @@ describe('markup builders', () => {
       title: 'Title',
       applicationName: 'Example',
       themeColor: '#123456',
-      nonce: 'nonce',
       bodyMarkup: '<main>Body</main>',
       headMarkup: '<meta name="custom" content="yes">',
       stylesheet: 'body{color:red}',
@@ -159,8 +158,8 @@ describe('markup builders', () => {
     })
 
     expect(complete).not.toContain('>\n<')
-    expect(complete).toContain('<style integrity="sha256-')
-    expect(complete).toContain('<script type="module" integrity="sha256-')
+    expect(complete).toContain('<style>')
+    expect(complete).toContain('<script type="module">')
     expect(complete).toContain('rel="apple-touch-icon"')
     expect(complete).toContain('name="twitter:card"')
 
@@ -169,12 +168,11 @@ describe('markup builders', () => {
       title: 'Title',
       applicationName: 'Example',
       themeColor: '#123456',
-      nonce: 'nonce',
       bodyMarkup: '',
       seo,
     })
     expect(minimal).not.toContain('<style')
-    expect(minimal).not.toContain('type="module" integrity')
+    expect(minimal).not.toContain('type="module"')
     expect(minimal).not.toContain('rel="icon"')
   })
 

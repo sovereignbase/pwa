@@ -1,5 +1,4 @@
 import { DocumentMarkupOptions } from '../.types/index.js'
-import { cspHash } from '../cspHash/index.js'
 import * as seo from '../seoComponents/index.js'
 /**
  * Generates a complete HTML document for a web application.
@@ -96,7 +95,7 @@ export const documentMarkup = async ({
 
     ${
       stylesheet
-        ? `<style integrity="${await cspHash(stylesheet)}">
+        ? `<style>
 ${stylesheet}
     </style>`
         : ''
@@ -107,7 +106,7 @@ ${stylesheet}
 ${bodyMarkup}
 ${
   entrypoint
-    ? `<script type="module" integrity="${await cspHash(entrypoint)}">
+    ? `<script type="module">
 ${entrypoint}
     </script>`
     : ''

@@ -69,10 +69,12 @@ worker.addEventListener('message', (event) => {
 })
 
 async function buildDocumentResponse(event: FetchEvent): Promise<Response> {
+  const language = documentLanguage(event.request)
   const cache = await caches.open(cacheName)
-  const cached = await cache.match(event.request)
-  const rendered = renderDocument(event.request).then(async (response) => {
-    await cache.put(event.request, response.clone())
+  const cacheKey = documentCacheKey(event.request, language)
+  const cached = await cache.match(cacheKey)
+  const rendered = renderDocument(language).then(async (response) => {
+    await cache.put(cacheKey, response.clone())
     return response
   })
 
@@ -98,9 +100,10 @@ async function negotiateCache(event: FetchEvent): Promise<Response> {
   return cached
 }
 
-async function renderDocument(request: Request): Promise<Response> {
-  const language = documentLanguage(request)
-  const options = documentOptions[language] ?? documentOptions[defaultLanguage]
+async function renderDocument(
+  language: DocumentMarkupOptions['language']
+): Promise<Response> {
+  const options = documentOptions[language]
   const markup = await documentMarkup({
     ...options,
     entrypoint,
@@ -115,6 +118,15 @@ async function renderDocument(request: Request): Promise<Response> {
       'x-pwaize-build-id': buildId,
     },
   })
+}
+
+function documentCacheKey(
+  request: Request,
+  language: DocumentMarkupOptions['language']
+): Request {
+  const url = new URL(request.url)
+  url.searchParams.set('__pwaize_language', language)
+  return new Request(url)
 }
 
 function documentLanguage(request: Request): DocumentMarkupOptions['language'] {
@@ -169,12 +181,6 @@ async function activateServiceWorker(): Promise<void> {
     worker.clients.claim(),
     backgroundStartup,
   ])
-
-  const clients = await worker.clients.matchAll({
-    includeUncontrolled: true,
-    type: 'window',
-  })
-  await Promise.all(clients.map((client) => client.navigate(client.url)))
 }
 
 async function deleteOldCaches(): Promise<void> {

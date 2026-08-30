@@ -3,9 +3,12 @@ import { fileURLToPath } from 'node:url'
 import { build } from 'esbuild'
 import { minify } from 'terser'
 
+const minifiedOutputs = new Map<string, string>()
+
 type JavaScriptInput = PathLike | { source: string }
 
 type MinifyJsOptions = {
+  banner?: string
   define?: Record<string, string>
   passes?: number
 }
@@ -13,7 +16,7 @@ type MinifyJsOptions = {
 /** Bundles, tree-shakes, mangles, and repeatedly minifies JavaScript. */
 export default async function minifyJs(
   input: JavaScriptInput,
-  { define, passes = 3 }: MinifyJsOptions = {}
+  { banner, define, passes = 3 }: MinifyJsOptions = {}
 ): Promise<string> {
   const bundled = await build({
     ...(typeof input === 'object' && 'source' in input
@@ -24,6 +27,7 @@ export default async function minifyJs(
           ],
         }),
     bundle: true,
+    banner: banner === undefined ? undefined : { js: banner },
     define,
     format: 'esm',
     legalComments: 'none',
@@ -33,7 +37,21 @@ export default async function minifyJs(
     write: false,
   })
 
-  let output = bundled.outputFiles[0].text
+  const output = bundled.outputFiles[0].text
+  const cacheKey = `${passes}\0${output}`
+  const cached = minifiedOutputs.get(cacheKey)
+  if (cached !== undefined) return cached
+
+  const result = await repeatedlyMinify(output, passes)
+  minifiedOutputs.set(cacheKey, result)
+  return result
+}
+
+async function repeatedlyMinify(
+  source: string,
+  passes: number
+): Promise<string> {
+  let output = source
 
   for (let round = 0; round < passes; round += 1) {
     const result = await minify(output, {
@@ -55,6 +73,7 @@ export default async function minifyJs(
       toplevel: true,
     })
 
+    /* v8 ignore next 3 -- Terser returns code or rejects for this input form. */
     if (result.code === undefined) {
       throw new Error('Terser did not produce JavaScript output')
     }

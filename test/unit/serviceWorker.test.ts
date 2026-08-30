@@ -6,14 +6,14 @@ const listeners: Record<string, Listener> = {}
 const responses = new Map<string, Response>()
 const cache = {
   addAll: vi.fn(async () => undefined),
-  match: vi.fn(async (request: Request) => responses.get(request.url)),
+  match: vi.fn(async (request: Request) => responses.get(request.url)?.clone()),
   put: vi.fn(async (request: Request, response: Response) => {
     responses.set(request.url, response)
   }),
 }
 const cachesMock = {
   open: vi.fn(async () => cache),
-  match: vi.fn(async (request: Request) => responses.get(request.url)),
+  match: vi.fn(async (request: Request) => responses.get(request.url)?.clone()),
   keys: vi.fn(async () => [
     '@sovereignbase/pwa:old',
     '@sovereignbase/pwa:build-1',
@@ -21,17 +21,12 @@ const cachesMock = {
   ]),
   delete: vi.fn(async () => true),
 }
-const client = {
-  url: 'https://example.test/en',
-  navigate: vi.fn(async () => null),
-}
 const worker = {
   addEventListener: vi.fn((name: string, listener: Listener) => {
     listeners[name] = listener
   }),
   clients: {
     claim: vi.fn(async () => undefined),
-    matchAll: vi.fn(async () => [client]),
   },
   registration: { update: vi.fn(async () => undefined) },
   skipWaiting: vi.fn(async () => undefined),
@@ -78,9 +73,7 @@ describe('generated Service Worker behavior', () => {
       cachesMock.match,
       cachesMock.keys,
       cachesMock.delete,
-      client.navigate,
       worker.clients.claim,
-      worker.clients.matchAll,
       worker.registration.update,
       worker.skipWaiting,
       fetchMock,
@@ -105,7 +98,7 @@ describe('generated Service Worker behavior', () => {
     ])
   })
 
-  it('precaches, activates, cleans old caches, claims, and reloads clients', async () => {
+  it('precaches, activates, cleans old caches, and claims clients', async () => {
     const install = serviceWorkerEvent()
     listeners.install(install.event)
     await install.done()
@@ -118,7 +111,6 @@ describe('generated Service Worker behavior', () => {
     expect(cachesMock.delete).toHaveBeenCalledTimes(1)
     expect(cachesMock.delete).toHaveBeenCalledWith('@sovereignbase/pwa:old')
     expect(worker.clients.claim).toHaveBeenCalledOnce()
-    expect(client.navigate).toHaveBeenCalledWith(client.url)
   })
 
   it('handles skip-waiting messages and ignores other messages', async () => {
@@ -144,7 +136,7 @@ describe('generated Service Worker behavior', () => {
     expect(first.headers.get('x-pwaize-build-id')).toBe('build-1')
 
     responses.set(
-      'https://example.test/en/cached',
+      'https://example.test/en/cached?__pwaize_language=en',
       new Response('stale document')
     )
     const cached = fetchEvent('https://example.test/en/cached', {
@@ -180,7 +172,18 @@ describe('generated Service Worker behavior', () => {
       '<html lang="en">'
     )
 
-    await Promise.all([exact.done(), base.done(), fallback.done()])
+    const noHeader = fetchEvent('https://example.test/', { mode: 'navigate' })
+    listeners.fetch(noHeader.event)
+    expect(await (await noHeader.response()).text()).toContain(
+      '<html lang="en">'
+    )
+
+    await Promise.all([
+      exact.done(),
+      base.done(),
+      fallback.done(),
+      noHeader.done(),
+    ])
   })
 
   it('uses network and stale-while-revalidate for static resources', async () => {
@@ -265,8 +268,12 @@ function fetchEvent(
 ) {
   const base = serviceWorkerEvent()
   let response: Promise<Response> | undefined
+  const headers = new Headers()
+  if (options.language !== undefined) {
+    headers.set('accept-language', options.language)
+  }
   const request = {
-    headers: new Headers({ 'accept-language': options.language ?? '' }),
+    headers,
     method: options.method ?? 'GET',
     mode: options.mode ?? 'cors',
     url,
@@ -294,7 +301,6 @@ function documentOptions(code: 'en' | 'fi', locale: 'en_US' | 'fi_FI') {
     title: code,
     applicationName: 'Worker',
     themeColor: '#123456',
-    nonce: 'worker',
     bodyMarkup: `<main>${code}</main>`,
     seo: {
       jsonLD: {

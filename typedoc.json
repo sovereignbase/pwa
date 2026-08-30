@@ -1,6 +1,13 @@
 {
   "$schema": "https://typedoc.org/schema.json",
   "entryPoints": ["src/index.ts"],
+  "intentionallyNotExported": [
+    "HTTPSUrl",
+    "URLPath",
+    "WebManifestOptions",
+    "WebManifestScreenshot",
+    "WebManifestShortcut"
+  ],
   "out": "docs/api",
   "favicon": "https://sovereignbase.dev/sovereignbase_logo.png"
 }
