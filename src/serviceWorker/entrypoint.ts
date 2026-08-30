@@ -32,10 +32,7 @@ declare const stylesheet: string
 const worker = self as unknown as ServiceWorkerGlobalScope
 const cachePrefix = '@sovereignbase/pwa:'
 const cacheName = `${cachePrefix}${buildId}`
-const backgroundStartup = Promise.all([
-  Promise.resolve(customWaitUntil?.()),
-  checkForUpdate(worker, buildIdUrl, buildId),
-]).then(() => undefined)
+const backgroundStartup = Promise.resolve(customWaitUntil?.())
 
 customInitialize?.()
 
@@ -45,7 +42,12 @@ const routes = Object.freeze({
 })
 
 worker.addEventListener('fetch', (event) => {
-  event.waitUntil(backgroundStartup)
+  event.waitUntil(
+    Promise.all([
+      backgroundStartup,
+      checkForUpdate(worker, buildIdUrl, buildId),
+    ])
+  )
 
   if (event.request.method !== 'GET' || bypassesServiceWorker(event.request)) {
     return

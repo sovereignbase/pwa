@@ -245,7 +245,6 @@ describe('generated Service Worker behavior', () => {
       expect(request.hasResponse()).toBe(false)
       await request.done()
     }
-    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('serves a direct build-ID navigation from the network', async () => {
@@ -282,7 +281,10 @@ describe('generated Service Worker behavior', () => {
     await request.done()
   })
 
-  it('checks the build ID once and updates only when a newer build exists', async () => {
+  it('throttles build-ID checks and updates only when a newer build exists', async () => {
+    const dateNow = vi
+      .spyOn(Date, 'now')
+      .mockReturnValue(Number.MAX_SAFE_INTEGER - 240_000)
     fetchMock.mockResolvedValueOnce(new Response('build-2'))
     await checkForUpdate(
       worker as unknown as ServiceWorkerGlobalScope,
@@ -291,6 +293,15 @@ describe('generated Service Worker behavior', () => {
     )
     expect(worker.registration.update).toHaveBeenCalledOnce()
 
+    fetchMock.mockClear()
+    await checkForUpdate(
+      worker as unknown as ServiceWorkerGlobalScope,
+      '/build-id',
+      'build-1'
+    )
+    expect(fetchMock).not.toHaveBeenCalled()
+
+    dateNow.mockReturnValue(Number.MAX_SAFE_INTEGER - 180_000)
     fetchMock.mockResolvedValueOnce(new Response('missing', { status: 404 }))
     await checkForUpdate(
       worker as unknown as ServiceWorkerGlobalScope,
@@ -299,6 +310,7 @@ describe('generated Service Worker behavior', () => {
     )
     expect(worker.registration.update).toHaveBeenCalledOnce()
 
+    dateNow.mockReturnValue(Number.MAX_SAFE_INTEGER - 120_000)
     fetchMock.mockResolvedValueOnce(new Response('build-1'))
     await checkForUpdate(
       worker as unknown as ServiceWorkerGlobalScope,
@@ -307,6 +319,7 @@ describe('generated Service Worker behavior', () => {
     )
     expect(worker.registration.update).toHaveBeenCalledOnce()
 
+    dateNow.mockReturnValue(Number.MAX_SAFE_INTEGER - 60_000)
     fetchMock.mockRejectedValueOnce(new Error('offline'))
     await checkForUpdate(
       worker as unknown as ServiceWorkerGlobalScope,
@@ -314,6 +327,7 @@ describe('generated Service Worker behavior', () => {
       'build-1'
     )
     expect(worker.registration.update).toHaveBeenCalledOnce()
+    dateNow.mockRestore()
   })
 })
 

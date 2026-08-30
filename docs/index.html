@@ -88,8 +88,9 @@ with canonical, <code>hreflang</code>, JSON-LD, Open Graph, and Twitter metadata
 application routes use document rendering.</li>
 <li>Navigation and static resources use stale-while-revalidate caching.</li>
 <li>Activation deletes old build caches and claims clients.</li>
-<li>When its script initializes, the worker checks a deterministic content build
-ID once and requests an update when deployed content has changed.</li>
+<li>The worker checks a deterministic content build ID during fetch events,
+throttled to at most once per minute, and requests an update when deployed
+content has changed.</li>
 <li>Repeated builds reuse unchanged JavaScript, CSS, and HTML minification results.</li>
 <li>Generated <code>_headers</code> keeps the Service Worker and build ID uncached and gives
 the assets directory a one-year immutable browser cache.</li>
