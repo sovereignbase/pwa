@@ -18,7 +18,6 @@ export const documentMarkup = async ({
   title,
   applicationName,
   themeColor,
-  nonce,
   bodyMarkup = '',
   headMarkup = '',
   stylesheet = '',
@@ -30,6 +29,7 @@ export const documentMarkup = async ({
   maskIconColor = themeColor,
   colorScheme = 'light dark',
   appleStatusBarStyle = 'black-translucent',
+  seo: documentSEO,
 }: DocumentMarkupOptions): Promise<string> => `<!DOCTYPE html>
 <html lang="${language}">
   <head>
@@ -62,11 +62,34 @@ export const documentMarkup = async ({
     }
     ${manifestUrl ? `<link rel="manifest" href="${manifestUrl}" />` : ''}
 
-${seo.jsonLDMarkup({ site, application, page, organization })}
-${seo.languageLinksMarkup}({})
-
-
-    
+    ${seo.jsonLDMarkup(documentSEO.jsonLD)}
+    ${seo.languageLinksMarkup(
+      documentSEO.languageLinks.host,
+      documentSEO.languageLinks.defaultLanguage,
+      documentSEO.languageLinks.canonicalLanguage,
+      documentSEO.languageLinks.alternateLanguages,
+      documentSEO.languageLinks.pathSuffix
+    )}
+    ${seo.ogMarkup(
+      documentSEO.openGraph.locale,
+      documentSEO.openGraph.siteName,
+      documentSEO.openGraph.title,
+      documentSEO.openGraph.description,
+      documentSEO.openGraph.url,
+      documentSEO.openGraph.imageUrl,
+      documentSEO.openGraph.imageAlt,
+      documentSEO.openGraph.imageWidth,
+      documentSEO.openGraph.imageHeight
+    )}
+    ${seo.twitterMarkup(
+      documentSEO.twitter.title,
+      documentSEO.twitter.description,
+      documentSEO.twitter.url,
+      documentSEO.twitter.imageUrl,
+      documentSEO.twitter.imageAlt,
+      documentSEO.twitter.site,
+      documentSEO.twitter.creator
+    )}
 
     ${headMarkup}
 

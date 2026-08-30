@@ -1,11 +1,39 @@
+import type { PathLike } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { build } from 'esbuild'
 import { minify } from 'terser'
 
-/** Aggressively optimizes an already bundled JavaScript module. */
+type JavaScriptInput = PathLike | { source: string }
+
+type MinifyJsOptions = {
+  define?: Record<string, string>
+  passes?: number
+}
+
+/** Bundles, tree-shakes, mangles, and repeatedly minifies JavaScript. */
 export default async function minifyJs(
-  source: string,
-  passes = 3
+  input: JavaScriptInput,
+  { define, passes = 3 }: MinifyJsOptions = {}
 ): Promise<string> {
-  let output = source
+  const bundled = await build({
+    ...(typeof input === 'object' && 'source' in input
+      ? { stdin: { contents: input.source, resolveDir: process.cwd() } }
+      : {
+          entryPoints: [
+            input instanceof URL ? fileURLToPath(input) : input.toString(),
+          ],
+        }),
+    bundle: true,
+    define,
+    format: 'esm',
+    legalComments: 'none',
+    minify: true,
+    platform: 'browser',
+    treeShaking: true,
+    write: false,
+  })
+
+  let output = bundled.outputFiles[0].text
 
   for (let round = 0; round < passes; round += 1) {
     const result = await minify(output, {

@@ -1,141 +1,223 @@
 import type { PathLike } from 'node:fs'
-import type { FileHandle } from 'node:fs/promises'
-import {
-  cp,
-  mkdir,
-  mkdtempDisposable,
-  readFile,
-  writeFile,
-} from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { basename, join } from 'node:path'
+import { cp, mkdir, readdir, writeFile } from 'node:fs/promises'
+import { basename, join, relative, sep } from 'node:path'
 import type { BCP47LanguageTag } from '@sovereignbase/utils'
-import { build, type Plugin } from 'esbuild'
+import type { DocumentMarkupOptions } from './.types/index.js'
+import { documentMarkup } from './htmlDocument/index.js'
 import minifyCss from './minifyCss/index.js'
+import minifyHtml from './minifyHtml/index.js'
 import minifyJs from './minifyJs/index.js'
+import {
+  webManifest,
+  type WebManifestOptions,
+} from './webManifest/index.js'
 
 export async function pwaize(config: PWAizeConfig): Promise<void> {
-  await using temporaryDirectory = await mkdtempDisposable(
-    join(tmpdir(), '@sovereignbase-pwa-')
-  )
-
   const outputDirectory = join(config.outDir.toString(), 'web')
   const buildId = crypto.randomUUID()
   const minifyPasses = config.minifyPasses ?? 3
+  const serviceWorkerPath = '/ServiceWorker'
 
   await mkdir(outputDirectory, { recursive: true })
-  await writeFile(
-    join(outputDirectory, '@sovereignbase/pwa:pwaize-build-id.txt'),
-    buildId
-  )
 
   for (const directory of [config.assetsDir, config.i18nDir]) {
     if (directory === undefined) continue
 
     const sourceDirectory = directory.toString()
-    await cp(
-      sourceDirectory,
-      join(outputDirectory, basename(sourceDirectory)),
-      {
-        recursive: true,
-      }
+    await cp(sourceDirectory, join(outputDirectory, basename(sourceDirectory)), {
+      recursive: true,
+    })
+  }
+
+  const stylesheet = await minifyCss(config.stylesheet)
+  const entrypoint = await minifyJs(config.entrypoint, {
+    passes: minifyPasses,
+  })
+  const installer = await minifyJs(
+    {
+      source: `const registration=await navigator.serviceWorker.register(${JSON.stringify(serviceWorkerPath)},{scope:"/",type:"module"});await navigator.serviceWorker.ready;if(!navigator.serviceWorker.controller)location.reload();`,
+    },
+    { passes: minifyPasses }
+  )
+  const documents: Record<string, string> = {}
+  const languages = [config.defaultLanguage, ...config.alternateLanguages]
+
+  for (const language of languages) {
+    const localized = config.languages[language]
+    if (localized === undefined) {
+      throw new Error(`Missing PWA configuration for language "${language}"`)
+    }
+
+    const languageDirectory = join(outputDirectory, language)
+    const manifestPath = `/${language}/manifest.webmanifest` as const
+    const manifest = webManifest({
+      ...localized.manifest,
+      lang: language,
+    })
+
+    await mkdir(languageDirectory, { recursive: true })
+    await writeFile(join(languageDirectory, 'manifest.webmanifest'), manifest)
+
+    documents[language] = await minifyHtml(
+      await documentMarkup({
+        ...localized.document,
+        language,
+        stylesheet,
+        entrypoint,
+        manifestUrl: manifestPath,
+      })
+    )
+    const installerDocument = await minifyHtml(
+      await documentMarkup({
+        ...localized.document,
+        language,
+        stylesheet: '',
+        entrypoint: installer,
+        manifestUrl: manifestPath,
+      })
+    )
+
+    await writeFile(join(languageDirectory, 'index.html'), installerDocument)
+
+    if (language === config.defaultLanguage) {
+      await writeFile(join(outputDirectory, 'index.html'), installerDocument)
+      await writeFile(join(outputDirectory, 'manifest.webmanifest'), manifest)
+    }
+  }
+
+  const buildIdPath = join(
+    outputDirectory,
+    '@sovereignbase',
+    'pwa',
+    'pwaize-build-id.txt'
+  )
+  await mkdir(join(outputDirectory, '@sovereignbase', 'pwa'), {
+    recursive: true,
+  })
+  await writeFile(buildIdPath, buildId)
+
+  if (config._headersFile === true) {
+    await writeFile(
+      join(outputDirectory, '_headers'),
+      `/${serviceWorkerPath.slice(1)}\n  Cache-Control: no-cache\n  Content-Type: text/javascript;charset=UTF-8\n\n/*\n  X-Content-Type-Options: nosniff\n`
     )
   }
 
-  const entrypointBuild = await build({
-    entryPoints: [config.entrypoint.toString()],
-    bundle: true,
-    minify: true,
-    treeShaking: true,
-    write: false,
-  })
-  const entrypoint = await minifyJs(
-    entrypointBuild.outputFiles[0].text,
-    minifyPasses
+  const precache = [
+    ...(await publicFiles(outputDirectory)),
+    ...(config.serviceWorker?.precache ?? []),
+  ]
+  const bypassRules = (config.serviceWorker?.bypass ?? []).map(globRule)
+  const serviceWorker = await minifyJs(
+    new URL('./serviceWorker/entrypoint.js', import.meta.url),
+    {
+      define: {
+        buildId: JSON.stringify(buildId),
+        bypassRules: JSON.stringify(bypassRules),
+        customInitialize:
+          config.serviceWorker?.initialize === undefined
+            ? 'undefined'
+            : `(${config.serviceWorker.initialize.toString()})`,
+        customWaitUntil:
+          config.serviceWorker?.waitUntil === undefined
+            ? 'undefined'
+            : `(${config.serviceWorker.waitUntil.toString()})`,
+        defaultLanguage: JSON.stringify(config.defaultLanguage),
+        documents: JSON.stringify(documents),
+        precache: JSON.stringify(precache),
+      },
+      passes: minifyPasses,
+    }
   )
 
-  const stylesheetBuild = await build({
-    entryPoints: [config.stylesheet.toString()],
-    bundle: true,
-    minify: true,
-    treeShaking: true,
-    write: false,
-  })
-  const stylesheet = minifyCss(stylesheetBuild.outputFiles[0].text)
-
-  const serviceWorkerPath = join(temporaryDirectory.path, 'ServiceWorker')
-
-  await build({
-    entryPoints: [
-      new URL('./serviceWorker/entrypoint.js', import.meta.url).pathname,
-    ],
-    outfile: serviceWorkerPath,
-    bundle: true,
-    minify: true,
-    treeShaking: true,
-    define: {
-      buildId: JSON.stringify(buildId),
-      customInitialize:
-        config.serviceWorker?.initialize === undefined
-          ? 'undefined'
-          : `(${config.serviceWorker.initialize.toString()})`,
-      customWaitUntil:
-        config.serviceWorker?.waitUntil === undefined
-          ? 'undefined'
-          : `(${config.serviceWorker.waitUntil.toString()})`,
-      entrypoint: JSON.stringify(entrypoint),
-      stylesheet: JSON.stringify(stylesheet),
-    },
-    plugins: [terserPlugin(serviceWorkerPath, minifyPasses)],
-  })
-
-  await writeFile(
-    join(outputDirectory, 'ServiceWorker'),
-    await readFile(serviceWorkerPath, 'utf8')
-  )
+  await writeFile(join(outputDirectory, serviceWorkerPath.slice(1)), serviceWorker)
 }
 
-const terserPlugin = (outputFile: string, passes: number): Plugin => ({
-  name: '@sovereignbase/pwa:terser',
+async function publicFiles(
+  directory: string,
+  root = directory
+): Promise<string[]> {
+  const entries = await readdir(directory, { withFileTypes: true })
+  const files: string[] = []
 
-  setup(build): void {
-    build.onEnd(async (result) => {
-      if (result.errors.length > 0) return
+  for (const entry of entries) {
+    const path = join(directory, entry.name)
+    if (entry.isDirectory()) {
+      files.push(...(await publicFiles(path, root)))
+    } else if (entry.isFile() && entry.name !== '_headers') {
+      files.push(`/${relative(root, path).split(sep).join('/')}`)
+    }
+  }
 
-      const source = await readFile(outputFile, 'utf8')
-      await writeFile(outputFile, await minifyJs(source, passes))
-    })
-  },
-})
+  return files.sort()
+}
+
+function globRule(pattern: string | RegExp): {
+  absolute: boolean
+  flags: string
+  source: string
+} {
+  if (pattern instanceof RegExp) {
+    return {
+      absolute: true,
+      flags: pattern.flags,
+      source: pattern.source,
+    }
+  }
+
+  let source = '^'
+  for (let index = 0; index < pattern.length; index += 1) {
+    const character = pattern[index]
+
+    if (character === '*') {
+      if (pattern[index + 1] === '*') {
+        source += '.*'
+        index += 1
+      } else {
+        source += '[^/]*'
+      }
+    } else if (character === '?') {
+      source += '.'
+    } else {
+      source += character.replace(/[|\\{}()[\]^$+?.]/g, '\\$&')
+    }
+  }
+
+  return {
+    absolute: pattern.includes('://'),
+    flags: '',
+    source: `${source}$`,
+  }
+}
 
 export type PWAizeConfig = {
   defaultLanguage: BCP47LanguageTag
   canonicalLanguage: BCP47LanguageTag
   alternateLanguages: BCP47LanguageTag[]
 
-  /** CSS entrypoint bundled and inlined into every generated document. */
-  stylesheet: PathLike | FileHandle
+  languages: Record<
+    string,
+    {
+      document: Omit<
+        DocumentMarkupOptions,
+        'entrypoint' | 'language' | 'manifestUrl' | 'stylesheet'
+      >
+      manifest: Omit<WebManifestOptions, 'lang'>
+    }
+  >
 
-  /** JavaScript entrypoint bundled and inlined into every generated document. */
-  entrypoint: PathLike | FileHandle
+  stylesheet: PathLike
+  entrypoint: PathLike
+  outDir: PathLike
 
-  /** Directory where generated PWA files are written. */
-  outDir: PathLike | FileHandle
-
-  /** Directory copied below `outDir/web` and included in the precache. */
-  assetsDir?: PathLike | FileHandle
-
-  /** Directory copied below `outDir/web` and included in the precache. */
-  i18nDir?: PathLike | FileHandle
-
-  /** Number of outer Terser rounds and compression passes per round. */
+  assetsDir?: PathLike
+  i18nDir?: PathLike
   minifyPasses?: number
 
   serviceWorker?: {
-    /** Runs synchronously whenever the Service Worker starts. */
+    bypass?: Array<string | RegExp>
+    precache?: `/${string}`[]
     initialize?: () => void
-
-    /** Background startup work attached to Service Worker events. */
     waitUntil?: () => Promise<void>
   }
 

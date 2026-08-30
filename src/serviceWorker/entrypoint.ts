@@ -85,7 +85,7 @@ async function negotiateCache(event: FetchEvent): Promise<Response> {
   return cached
 }
 
-function renderDocument(request: Request): Response {
+async function renderDocument(request: Request): Promise<Response> {
   const language = documentLanguage(request)
   return new Response(documents[language] ?? documents[defaultLanguage], {
     headers: {

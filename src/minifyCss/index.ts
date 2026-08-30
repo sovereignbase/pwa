@@ -1,9 +1,20 @@
+import type { PathLike } from 'node:fs'
+import { build } from 'esbuild'
 import { transform } from 'lightningcss'
 
-/** Minifies a complete CSS stylesheet into a dense string. */
-export default function minifyCss(source: string): string {
+/** Bundles and minifies a CSS entrypoint into a dense string. */
+export default async function minifyCss(entrypoint: PathLike): Promise<string> {
+  const bundled = await build({
+    entryPoints: [entrypoint.toString()],
+    bundle: true,
+    legalComments: 'none',
+    minify: true,
+    treeShaking: true,
+    write: false,
+  })
   const { code } = transform({
-    code: new TextEncoder().encode(source),
+    code: bundled.outputFiles[0].contents,
+    filename: entrypoint.toString(),
     minify: true,
   })
 

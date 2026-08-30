@@ -1,4 +1,4 @@
-import type { BCP47LanguageTag } from '@sovereignbase/utils'
+import type { BCP47LanguageTag, OpenGraphLocale } from '@sovereignbase/utils'
 export type URLPath = `/${string}`
 export type HTTPSUrl = `https://${string}`
 
@@ -50,6 +50,46 @@ export interface DocumentMarkupOptions {
 
   /** Apple standalone status bar appearance. */
   appleStatusBarStyle?: 'default' | 'black' | 'black-translucent'
+
+  /** Search and social metadata rendered with the SEO component builders. */
+  seo: DocumentSEO
+}
+
+export interface DocumentSEO {
+  jsonLD: JSONLDMarkup
+  languageLinks: LanguageLinksMarkupOptions
+  openGraph: OpenGraphMarkupOptions
+  twitter: TwitterMarkupOptions
+}
+
+export interface LanguageLinksMarkupOptions {
+  host: `${string}.${string}`
+  defaultLanguage: BCP47LanguageTag
+  canonicalLanguage: BCP47LanguageTag
+  alternateLanguages: BCP47LanguageTag[]
+  pathSuffix?: '' | `/${string}`
+}
+
+export interface OpenGraphMarkupOptions {
+  locale: OpenGraphLocale
+  siteName: string
+  title: string
+  description: string
+  url: HTTPSUrl
+  imageUrl: string
+  imageAlt: string
+  imageWidth?: number
+  imageHeight?: number
+}
+
+export interface TwitterMarkupOptions {
+  title: string
+  description: string
+  url: HTTPSUrl
+  imageUrl: string
+  imageAlt: string
+  site: `@${string}`
+  creator: `@${string}`
 }
 
 export interface JSONLDMarkup {
