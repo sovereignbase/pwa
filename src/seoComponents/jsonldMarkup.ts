@@ -1,37 +1,4 @@
-import type { BCP47LanguageTag } from "@sovereignbase/utils";
-
-type HTTPSUrl = `https://${string}`;
-
-export interface JSONLDMarkup {
-  site: {
-    name: string;
-    url: HTTPSUrl;
-  };
-
-  application: {
-    name: string;
-    url: HTTPSUrl;
-    inLanguage: BCP47LanguageTag[];
-    applicationCategory?: string;
-    operatingSystem?: string;
-    browserRequirements?: string;
-    featureList?: string[];
-    screenshot?: HTTPSUrl[];
-  };
-
-  page: {
-    name: string;
-    description: string;
-    url: HTTPSUrl;
-    inLanguage: BCP47LanguageTag;
-  };
-
-  organization: {
-    name: string;
-    url: HTTPSUrl;
-    logo: HTTPSUrl;
-  };
-}
+import type { JSONLDMarkup } from "../.types/index.js";
 
 /**
  * Generates Schema.org JSON-LD markup describing a website,

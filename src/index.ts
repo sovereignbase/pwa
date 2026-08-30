@@ -75,7 +75,7 @@ export type PWAizeConfig = {
   outDir: PathLike | FileHandle;
 
   /** Copied in to outDir root, referencable in code by relative url `/${dirName}*` */
-  fontDir?: PathLike | FileHandle;
+  assetsDir?: PathLike | FileHandle;
   /** Bundled in to outDir with splitting referencable in code by relative url `/${dirName}*` */
   i18nDir?: PathLike | FileHandle;
 

@@ -1,57 +1,6 @@
-import type { BCP47LanguageTag } from "@sovereignbase/utils";
-
-type URLPath = `/${string}`;
-
-export interface DocumentMarkupOptions {
-  /** Language of the document. */
-  language: BCP47LanguageTag;
-
-  /** Document title. */
-  title: string;
-
-  /** Application name used by installed/mobile browser UI. */
-  applicationName: string;
-
-  /** Theme color used by supported browser chrome. */
-  themeColor: string;
-
-  /** CSP nonce applied to inline styles and scripts. */
-  nonce: string;
-
-  /** Complete markup rendered inside `<body>`. */
-  bodyMarkup: string;
-
-  /** Additional markup inserted into `<head>`. */
-  headMarkup?: string;
-
-  /** Critical CSS rendered inline during initial document load. */
-  eagerStyles?: string;
-
-  /** JavaScript module rendered inline into the document. */
-  moduleScript?: string;
-
-  /** Favicon URL. */
-  iconUrl?: URLPath;
-
-  /** Apple touch icon URL. */
-  appleTouchIconUrl?: URLPath;
-
-  /** Safari pinned-tab mask icon URL. */
-  maskIconUrl?: URLPath;
-
-  /** Web App Manifest URL. */
-  manifestUrl?: URLPath;
-
-  /** Safari pinned-tab icon color. Defaults to `themeColor`. */
-  maskIconColor?: string;
-
-  /** Preferred document color schemes. */
-  colorScheme?: "light" | "dark" | "light dark" | "dark light";
-
-  /** Apple standalone status bar appearance. */
-  appleStatusBarStyle?: "default" | "black" | "black-translucent";
-}
-
+import { DocumentMarkupOptions } from "../.types/index.js";
+import { cspHash } from "../cspHash/index.js";
+import * as seo from "../seoComponents/index.js";
 /**
  * Generates a complete HTML document for a web application.
  *
@@ -64,7 +13,7 @@ export interface DocumentMarkupOptions {
  * - inline ES module initialization,
  * - arbitrary additional head markup.
  */
-export const documentMarkup = ({
+export const documentMarkup = async ({
   language,
   title,
   applicationName,
@@ -81,7 +30,7 @@ export const documentMarkup = ({
   maskIconColor = themeColor,
   colorScheme = "light dark",
   appleStatusBarStyle = "black-translucent",
-}: DocumentMarkupOptions): string => `<!DOCTYPE html>
+}: DocumentMarkupOptions): Promise<string> => `<!DOCTYPE html>
 <html lang="${language}">
   <head>
     <meta charset="UTF-8" />
@@ -113,24 +62,31 @@ export const documentMarkup = ({
     }
     ${manifestUrl ? `<link rel="manifest" href="${manifestUrl}" />` : ""}
 
+${seo.jsonLDMarkup({ site, application, page, organization })}
+${seo.languageLinksMarkup}({})
+
+
+    
+
     ${headMarkup}
 
     ${
       stylesheet ?
-        `<style id="eager" nonce="${nonce}">
+        `<style integrity="${await cspHash(stylesheet)}">
 ${stylesheet}
     </style>`
       : ""
     }
-    ${
-      entrypoint ?
-        `<script type="module" nonce="${nonce}">
-${entrypoint}
-    </script>`
-      : ""
-    }
+
   </head>
   <body>
 ${bodyMarkup}
+${
+  entrypoint ?
+    `<script type="module" integrity="${await cspHash(entrypoint)}">
+${entrypoint}
+    </script>`
+  : ""
+}
   </body>
 </html>`;
