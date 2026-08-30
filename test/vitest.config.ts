@@ -12,7 +12,7 @@ export default defineConfig({
       provider: 'v8',
       reportsDirectory: fileURLToPath(new URL('./coverage', import.meta.url)),
       include: ['src/**/*.ts'],
-      exclude: ['src/.types/**'],
+      exclude: ['src/types/**'],
       reporter: ['text', 'lcov'],
       reportOnFailure: true,
       thresholds: {

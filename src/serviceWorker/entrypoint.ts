@@ -1,4 +1,4 @@
-import type { DocumentMarkupOptions } from '../.types/index.js'
+import type { DocumentMarkupOptions } from '../types/index.js'
 import { documentMarkup } from '../htmlDocument/index.js'
 
 declare const buildId: string
@@ -11,7 +11,9 @@ declare const bypassRules: ReadonlyArray<{
 declare const customInitialize: (() => void) | undefined
 declare const customWaitUntil: (() => Promise<void>) | undefined
 declare const defaultLanguage: DocumentMarkupOptions['language']
-declare const contentSecurityPolicies: Readonly<Record<string, string>>
+declare const documentSecurityHeaders: Readonly<
+  Record<string, Record<string, string>>
+>
 declare const documentOptions: Readonly<
   Record<
     string,
@@ -124,7 +126,7 @@ async function renderDocument(
 
   return new Response(markup, {
     headers: {
-      'content-security-policy': contentSecurityPolicies[language],
+      ...documentSecurityHeaders[language],
       'content-type': 'text/html;charset=UTF-8',
       'x-pwaize-build-id': buildId,
     },

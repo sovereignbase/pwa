@@ -20,7 +20,7 @@ export const languageLinksMarkup = (
   canonicalLanguage: BCP47LanguageTag,
   alternateLanguages: BCP47LanguageTag[],
   pathSuffix: '' | `/${string}` = ''
-) => `
+): string => `
   <link rel="canonical" href="https://${host}/${canonicalLanguage}${pathSuffix}" />
   ${(() => {
     let markup = ``

@@ -1,8 +1,11 @@
 import type { BCP47LanguageTag, OpenGraphLocale } from '@sovereignbase/utils'
 
+/** Absolute HTTPS URL. */
 export type HTTPSUrl = `https://${string}`
+/** Root-relative URL path. */
 export type URLPath = `/${string}`
 
+/** Values used to render a complete localized HTML document. */
 export interface DocumentMarkupOptions {
   applicationName: string
   appleStatusBarStyle?: 'default' | 'black' | 'black-translucent'
@@ -22,6 +25,7 @@ export interface DocumentMarkupOptions {
   title: string
 }
 
+/** Search and social metadata for a localized document. */
 export interface DocumentSEO {
   jsonLD: JSONLDMarkup
   languageLinks: LanguageLinksMarkupOptions
@@ -29,6 +33,7 @@ export interface DocumentSEO {
   twitter: TwitterMarkupOptions
 }
 
+/** Schema.org graph values for a site, application, page, and organization. */
 export interface JSONLDMarkup {
   application: {
     applicationCategory?: string
@@ -57,6 +62,7 @@ export interface JSONLDMarkup {
   }
 }
 
+/** Canonical and alternate-language link values. */
 export interface LanguageLinksMarkupOptions {
   alternateLanguages: BCP47LanguageTag[]
   canonicalLanguage: BCP47LanguageTag
@@ -65,6 +71,7 @@ export interface LanguageLinksMarkupOptions {
   pathSuffix?: '' | `/${string}`
 }
 
+/** Open Graph metadata values. */
 export interface OpenGraphMarkupOptions {
   description: string
   imageAlt: string
@@ -77,6 +84,7 @@ export interface OpenGraphMarkupOptions {
   url: HTTPSUrl
 }
 
+/** Twitter Card metadata values. */
 export interface TwitterMarkupOptions {
   creator: `@${string}`
   description: string

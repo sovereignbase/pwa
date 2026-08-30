@@ -1,4 +1,4 @@
-import { DocumentMarkupOptions } from '../.types/index.js'
+import type { DocumentMarkupOptions } from '../types/index.js'
 import * as seo from '../seoComponents/index.js'
 /**
  * Generates a complete HTML document for a web application.
@@ -39,6 +39,7 @@ export const documentMarkup = async ({
 
     <meta name="application-name" content="${applicationName}" />
     <meta name="color-scheme" content="${colorScheme}" />
+    <meta name="description" content="${documentSEO.openGraph.description}" />
     <meta name="theme-color" content="${themeColor}" />
 
     <meta name="mobile-web-app-capable" content="yes" />

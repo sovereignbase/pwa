@@ -15,10 +15,9 @@ if (build.status !== 0) {
 const publicDirectory = resolve('example/dist/web')
 const apiValues = new Map()
 let idleTimer
-const installerContentSecurityPolicy = readFileSync(
-  join(publicDirectory, '_headers'),
-  'utf8'
-).match(/^  Content-Security-Policy: (.+)$/m)?.[1]
+const headerRules = parseHeaderRules(
+  readFileSync(join(publicDirectory, '_headers'), 'utf8')
+)
 const contentTypes = {
   '.html': 'text/html;charset=UTF-8',
   '.js': 'text/javascript;charset=UTF-8',
@@ -64,11 +63,11 @@ const server = createServer((request, response) => {
       ? 'text/javascript;charset=UTF-8'
       : (contentTypes[extname(path)] ?? 'application/octet-stream')
   )
-  if (installerContentSecurityPolicy !== undefined) {
-    response.setHeader(
-      'content-security-policy',
-      installerContentSecurityPolicy
-    )
+  for (const rule of headerRules) {
+    if (!routeMatches(rule.route, url.pathname)) continue
+    for (const [name, value] of Object.entries(rule.headers)) {
+      response.setHeader(name, value)
+    }
   }
   if (
     url.pathname === '/ServiceWorker' ||
@@ -91,4 +90,30 @@ server.listen(4173, '127.0.0.1', () => {
 function scheduleShutdown() {
   clearTimeout(idleTimer)
   idleTimer = setTimeout(() => server.close(() => process.exit()), 5_000)
+}
+
+function parseHeaderRules(source) {
+  const rules = []
+  let rule
+
+  for (const line of source.trim().split('\n')) {
+    if (!line.startsWith('  ')) {
+      rule = { route: line, headers: {} }
+      rules.push(rule)
+      continue
+    }
+    const match = line.match(/^  ([^:]+): (.+)$/)
+    if (rule !== undefined && match !== null) rule.headers[match[1]] = match[2]
+  }
+
+  return rules
+}
+
+function routeMatches(pattern, pathname) {
+  if (pattern === '/*') return true
+  if (pattern.endsWith('/*')) {
+    const prefix = pattern.slice(0, -1)
+    return pathname.startsWith(prefix)
+  }
+  return pathname === pattern || `${pathname}/` === pattern
 }

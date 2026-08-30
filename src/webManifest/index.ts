@@ -3,6 +3,7 @@ import type { BCP47LanguageTag } from '@sovereignbase/utils'
 type Path = `/${string}`
 type ImageURL = Path | `https://${string}`
 
+/** Screenshot metadata emitted into a web app manifest. */
 export interface WebManifestScreenshot {
   src: ImageURL
   sizes: `${number}x${number}`
@@ -11,6 +12,7 @@ export interface WebManifestScreenshot {
   label?: string
 }
 
+/** Application shortcut emitted into a web app manifest. */
 export interface WebManifestShortcut {
   name: string
   url: Path
@@ -22,6 +24,7 @@ export interface WebManifestShortcut {
   }[]
 }
 
+/** Values used to generate one localized web app manifest. */
 export interface WebManifestOptions {
   name: string
   shortName: string

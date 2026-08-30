@@ -23,7 +23,7 @@ export const ogMarkup = (
   imageAlt: string,
   imageWidth: number = 1200,
   imageHeight: number = 630
-) => `
+): string => `
   <meta property="og:locale" content="${locale}" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="${siteName}" />

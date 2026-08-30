@@ -8,6 +8,9 @@ test('generates a localized, indexed installer with complete SEO', async ({
   expect(response.headers()['content-security-policy']).toContain(
     "script-src 'self' 'unsafe-inline' 'sha256-"
   )
+  expect(response.headers()['strict-transport-security']).toContain(
+    'max-age=63072000'
+  )
   const markup = await response.text()
 
   expect(markup.split(/\r?\n/)).toHaveLength(1)
@@ -16,6 +19,7 @@ test('generates a localized, indexed installer with complete SEO', async ({
   expect(markup).toContain('application/ld+json')
   expect(markup).toContain('property=og:title')
   expect(markup).toContain('name=twitter:card')
+  expect(markup).toContain('name=description')
   expect(markup).toContain('hreflang=fi')
   expect(markup).not.toContain('<style')
 
@@ -47,6 +51,12 @@ test('installs the Service Worker, renders the app, and works offline', async ({
   const onlineResponse = await page.reload()
   expect(onlineResponse?.headers()['content-security-policy']).toContain(
     "style-src 'self' 'unsafe-inline' 'sha256-"
+  )
+  expect(onlineResponse?.headers()['content-security-policy']).toContain(
+    "require-trusted-types-for 'script'"
+  )
+  expect(onlineResponse?.headers()['cross-origin-opener-policy']).toBe(
+    'same-origin'
   )
   await page.waitForFunction(
     () =>

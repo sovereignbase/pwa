@@ -8,7 +8,7 @@ import {
   twitterMarkup,
 } from '../../src/seoComponents/index.js'
 import { webManifest } from '../../src/webManifest/index.js'
-import type { DocumentSEO, JSONLDMarkup } from '../../src/.types/index.js'
+import type { DocumentSEO, JSONLDMarkup } from '../../src/types/index.js'
 
 const jsonLD: JSONLDMarkup = {
   site: { name: 'Example', url: 'https://example.test' },
@@ -160,6 +160,9 @@ describe('markup builders', () => {
     expect(complete).not.toContain('>\n<')
     expect(complete).toContain('<style>')
     expect(complete).toContain('<script type="module">')
+    expect(complete).toContain(
+      '<meta name="description" content="Description" />'
+    )
     expect(complete).toContain('rel="apple-touch-icon"')
     expect(complete).toContain('name="twitter:card"')
 

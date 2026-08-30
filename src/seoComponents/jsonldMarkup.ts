@@ -1,4 +1,4 @@
-import type { JSONLDMarkup } from '../.types/index.js'
+import type { JSONLDMarkup } from '../types/index.js'
 
 /**
  * Generates Schema.org JSON-LD markup describing a website,
@@ -9,7 +9,7 @@ export const jsonLDMarkup = ({
   application,
   page,
   organization,
-}: JSONLDMarkup) => {
+}: JSONLDMarkup): string => {
   const siteId = `${site.url}#website`
   const applicationId = `${application.url}#application`
   const organizationId = `${organization.url}#organization`

@@ -3,11 +3,7 @@ import { existsSync, type PathLike } from 'node:fs'
 import { cp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, sep } from 'node:path'
 import type { BCP47LanguageTag, OpenGraphLocale } from '@sovereignbase/utils'
-import type {
-  DocumentMarkupOptions,
-  HTTPSUrl,
-  URLPath,
-} from './.types/index.js'
+import type { DocumentMarkupOptions, HTTPSUrl, URLPath } from './types/index.js'
 import { cspHash } from './cspHash/index.js'
 import { documentMarkup } from './htmlDocument/index.js'
 import minifyCss from './minifyCss/index.js'
@@ -20,6 +16,15 @@ import {
   type WebManifestShortcut,
 } from './webManifest/index.js'
 
+/**
+ * Builds a localized, offline-first PWA into `<outDir>/web`.
+ *
+ * The build emits indexed installer documents, localized web manifests,
+ * bundled language modules, copied assets, deployment headers, a deterministic
+ * build ID, and a self-rendering Service Worker.
+ *
+ * @param config Complete build, localization, metadata, and worker settings.
+ */
 export async function pwaize(config: PWAizeConfig): Promise<void> {
   const outputDirectory = join(config.outDir.toString(), 'web')
   const languages = [
@@ -55,7 +60,7 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
   })
   const installer = await minifyJs(
     {
-      source: `await navigator.serviceWorker.register(${JSON.stringify(serviceWorkerPath)},{scope:"/",type:"module"});await navigator.serviceWorker.ready;location.reload();`,
+      source: `const url=${JSON.stringify(serviceWorkerPath)};const policy=globalThis.trustedTypes?.createPolicy("pwaize",{createScriptURL:()=>url});await navigator.serviceWorker.register(policy?.createScriptURL(url)??url,{scope:"/",type:"module"});await navigator.serviceWorker.ready;location.reload();`,
     },
     { passes: minifyPasses }
   )
@@ -66,7 +71,7 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
       'entrypoint' | 'language' | 'manifestUrl' | 'stylesheet'
     >
   > = {}
-  const contentSecurityPolicies: Record<string, string> = {}
+  const documentSecurityHeaders: Record<string, Record<string, string>> = {}
   const installerDocuments: string[] = []
 
   for (const language of languages) {
@@ -94,9 +99,9 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
       manifestUrl: manifestPath,
       stylesheet,
     })
-    contentSecurityPolicies[language] = await contentSecurityPolicy([
-      applicationDocument,
-    ])
+    documentSecurityHeaders[language] = securityHeaders(
+      await contentSecurityPolicy([applicationDocument])
+    )
     installerDocuments.push(installerDocument)
     await writeFile(join(languageDirectory, 'index.html'), installerDocument)
 
@@ -109,13 +114,23 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
   if (config._headersFile === true) {
     const installerContentSecurityPolicy =
       await contentSecurityPolicy(installerDocuments)
+    const installerRoutes = [
+      '/',
+      '/index.html',
+      ...languages.flatMap((language) => [`/${language}`, `/${language}/*`]),
+    ]
+      .map(
+        (route) =>
+          `${route}\n${headersMarkup({ 'Content-Security-Policy': installerContentSecurityPolicy })}`
+      )
+      .join('\n')
     const assetsHeaders =
       config.assetsDir === undefined
         ? ''
         : `/${basename(config.assetsDir.toString())}/*\n  Cache-Control: public, max-age=31536000, immutable\n\n`
     await writeFile(
       join(outputDirectory, '_headers'),
-      `/${serviceWorkerPath.slice(1)}\n  Cache-Control: no-cache\n  Content-Type: text/javascript;charset=UTF-8\n\n${buildIdUrl}\n  Cache-Control: no-cache, no-store, must-revalidate\n  Content-Type: text/plain;charset=UTF-8\n\n${assetsHeaders}/*\n  Content-Security-Policy: ${installerContentSecurityPolicy}\n  X-Content-Type-Options: nosniff\n`
+      `/${serviceWorkerPath.slice(1)}\n  Cache-Control: no-cache\n  Content-Type: text/javascript;charset=UTF-8\n\n${buildIdUrl}\n  Cache-Control: no-cache, no-store, must-revalidate\n  Content-Type: text/plain;charset=UTF-8\n\n${assetsHeaders}${installerRoutes}\n/*\n${headersMarkup(baseSecurityHeaders())}`
     )
   }
 
@@ -143,7 +158,7 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
       : functionExpression(config.serviceWorker.waitUntil)
   const buildId = await contentBuildId(outputDirectory, generatedFiles, {
     bypassRules,
-    contentSecurityPolicies,
+    documentSecurityHeaders,
     documentOptions,
     entrypoint,
     initialize,
@@ -173,7 +188,7 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
         customInitialize: '__pwaInitialize',
         customWaitUntil: '__pwaWaitUntil',
         defaultLanguage: JSON.stringify(config.defaultLanguage),
-        contentSecurityPolicies: JSON.stringify(contentSecurityPolicies),
+        documentSecurityHeaders: JSON.stringify(documentSecurityHeaders),
         documentOptions: JSON.stringify(documentOptions),
         entrypoint: JSON.stringify(entrypoint),
         precache: JSON.stringify(precache),
@@ -209,6 +224,8 @@ async function contentSecurityPolicy(documents: string[]): Promise<string> {
     )
       .map((hash) => `'${hash}'`)
       .join(' ')
+  const scriptHashes = await hashes(inlineScripts)
+  const styleHashes = await hashes(inlineStyles)
 
   return [
     `default-src 'self'`,
@@ -221,11 +238,42 @@ async function contentSecurityPolicy(documents: string[]): Promise<string> {
     `manifest-src 'self'`,
     `media-src 'self' data: blob: https:`,
     `object-src 'none'`,
-    `script-src 'self' 'unsafe-inline' ${await hashes(inlineScripts)}`,
-    `style-src 'self' 'unsafe-inline' ${await hashes(inlineStyles)}`,
+    `require-trusted-types-for 'script'`,
+    `script-src 'self' 'unsafe-inline' ${scriptHashes} 'strict-dynamic'`,
+    `script-src-attr 'none'`,
+    `script-src-elem 'self' 'unsafe-inline' ${scriptHashes}`,
+    `style-src 'self' 'unsafe-inline' ${styleHashes}`,
+    `style-src-attr 'none'`,
+    `trusted-types *`,
     `worker-src 'self' blob:`,
     'upgrade-insecure-requests',
   ].join('; ')
+}
+
+function headersMarkup(headers: Record<string, string>): string {
+  return `${Object.entries(headers)
+    .map(([name, value]) => `  ${name}: ${value}`)
+    .join('\n')}\n`
+}
+
+function securityHeaders(
+  contentSecurityPolicy: string
+): Record<string, string> {
+  return {
+    'Content-Security-Policy': contentSecurityPolicy,
+    ...baseSecurityHeaders(),
+  }
+}
+
+function baseSecurityHeaders(): Record<string, string> {
+  return {
+    'Cross-Origin-Opener-Policy': 'same-origin',
+    'Cross-Origin-Resource-Policy': 'same-origin',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+  }
 }
 
 async function buildScriptDirectory(
@@ -477,8 +525,10 @@ function localizedValue<T>(
   return values[language] ?? values[defaultLanguage] ?? empty
 }
 
+/** A shared value or values selected by BCP 47 language tag. */
 export type Localized<T> = T | Partial<Record<BCP47LanguageTag, T>>
 
+/** Declarative input accepted by {@link pwaize}. */
 export type PWAizeConfig = {
   _headersFile?: boolean
   alternateLanguages: BCP47LanguageTag[]

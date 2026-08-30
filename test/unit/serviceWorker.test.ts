@@ -52,9 +52,15 @@ describe('generated Service Worker behavior', () => {
     ])
     vi.stubGlobal('customInitialize', initialize)
     vi.stubGlobal('customWaitUntil', startup)
-    vi.stubGlobal('contentSecurityPolicies', {
-      en: "default-src 'self'; script-src 'sha256-en'",
-      fi: "default-src 'self'; script-src 'sha256-fi'",
+    vi.stubGlobal('documentSecurityHeaders', {
+      en: {
+        'Content-Security-Policy': "default-src 'self'; script-src 'sha256-en'",
+        'Cross-Origin-Opener-Policy': 'same-origin',
+      },
+      fi: {
+        'Content-Security-Policy': "default-src 'self'; script-src 'sha256-fi'",
+        'Cross-Origin-Opener-Policy': 'same-origin',
+      },
     })
     vi.stubGlobal('defaultLanguage', 'en')
     vi.stubGlobal('documentOptions', {
@@ -141,6 +147,7 @@ describe('generated Service Worker behavior', () => {
     expect(first.headers.get('content-security-policy')).toContain(
       "'sha256-fi'"
     )
+    expect(first.headers.get('cross-origin-opener-policy')).toBe('same-origin')
     expect(first.headers.get('x-pwaize-build-id')).toBe('build-1')
 
     responses.set(

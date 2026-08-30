@@ -80,7 +80,18 @@ describe('pwaize', () => {
       'Cache-Control: public, max-age=31536000, immutable'
     )
     expect(headers).toContain("script-src 'self' 'unsafe-inline' 'sha256-")
+    expect(headers).toContain("script-src-elem 'self' 'unsafe-inline' 'sha256-")
     expect(headers).toContain("style-src 'self' 'unsafe-inline' 'sha256-")
+    expect(headers).toContain("'strict-dynamic'")
+    expect(headers).toContain("require-trusted-types-for 'script'")
+    expect(headers).toContain('Cross-Origin-Opener-Policy: same-origin')
+    expect(headers).toContain('Cross-Origin-Resource-Policy: same-origin')
+    expect(headers).toContain('Strict-Transport-Security: max-age=63072000')
+    expect(headers).toContain('X-Frame-Options: DENY')
+    expect(headers.split('\n/*\n').at(-1)).not.toContain(
+      'Content-Security-Policy'
+    )
+    expect(headers).toContain('\n/en/*\n  Content-Security-Policy:')
     expect(buildId).toMatch(/^[0-9a-f]{64}$/)
     expect(worker.split(/\r?\n/)).toHaveLength(1)
     expect(worker).toContain(buildId)
