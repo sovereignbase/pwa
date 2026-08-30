@@ -1,6 +1,6 @@
 {
   "name": "@sovereignbase/pwa",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Build offline-first, search-engine-optimized progressive web applications.",
   "keywords": [
     "build-tool",
@@ -30,9 +30,6 @@
     "LICENSE",
     "README.md"
   ],
-  "engines": {
-    "node": ">=20"
-  },
   "sideEffects": false,
   "scripts": {
     "format": "prettier . --write",
