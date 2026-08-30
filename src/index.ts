@@ -7,9 +7,32 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import contentMinifierPlugin from "../scripts/plugins/contentMinifierPlugin.js";
 import type { PathLike } from "node:fs";
 import { BCP47LanguageTag } from "@sovereignbase/utils";
+
+import { build } from "esbuild";
+import { readFile, writeFile } from "node:fs/promises";
+import { minify } from "terser";
+
+/** @returns {import('esbuild').Plugin} */
+const terser = {
+  name: "terser",
+
+  setup(build) {
+    build.onEnd(async (result) => {
+      if (result.errors.length) return;
+
+      const source = await readFile(outfile, "utf8");
+      const output = await minify(source, {
+        compress: {
+          passes: 3,
+        },
+        mangle: true,
+        module: true,
+      });
+    });
+  },
+};
 
 export async function pwaize(config: PWAizeConfig) {
   await using temp = await mkdtempDisposable(join(tmpdir(), "pwaize-"));
