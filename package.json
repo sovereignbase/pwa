@@ -31,7 +31,7 @@
     "README.md"
   ],
   "engines": {
-    "node": ">=24"
+    "node": ">=20"
   },
   "sideEffects": false,
   "scripts": {
@@ -40,10 +40,14 @@
     "build": "npm run build:package && npm run build:docs",
     "build:package": "tsdown",
     "build:docs": "typedoc",
+    "build:example": "npm run build:package && node test/index.js",
     "typecheck": "tsc --noEmit && tsc --noEmit --project test/tsconfig.json",
-    "test": "npm run build && npm run typecheck && npm run test:vitest && npm run test:e2e",
-    "test:vitest": "vitest run --coverage",
-    "test:e2e": "playwright test",
+    "test": "npm run build && npm run typecheck && npm run test:vitest && npm run test:runtimes && npm run test:e2e",
+    "test:vitest": "vitest run --config test/vitest.config.ts --coverage",
+    "test:runtimes": "npm run test:runtime:node && npm run test:runtime:bun",
+    "test:runtime:node": "node test/runtimes/run.mjs",
+    "test:runtime:bun": "bun test/runtimes/run.mjs",
+    "test:e2e": "playwright test --config test/playwright.config.ts",
     "prepare": "husky",
     "prepublishOnly": "npm test"
   },

@@ -1,4 +1,4 @@
-import type { PathLike } from 'node:fs'
+import { existsSync, type PathLike } from 'node:fs'
 import { cp, mkdir, readdir, writeFile } from 'node:fs/promises'
 import { basename, join, relative, sep } from 'node:path'
 import type { BCP47LanguageTag } from '@sovereignbase/utils'
@@ -99,8 +99,14 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
     ...(config.serviceWorker?.precache ?? []),
   ]
   const bypassRules = (config.serviceWorker?.bypass ?? []).map(globRule)
+  const compiledServiceWorker = new URL(
+    './serviceWorker/entrypoint.js',
+    import.meta.url
+  )
   const serviceWorker = await minifyJs(
-    new URL('./serviceWorker/entrypoint.js', import.meta.url),
+    existsSync(compiledServiceWorker)
+      ? compiledServiceWorker
+      : new URL('./serviceWorker/entrypoint.ts', import.meta.url),
     {
       define: {
         buildId: JSON.stringify(buildId),

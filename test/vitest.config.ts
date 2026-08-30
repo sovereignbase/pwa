@@ -9,6 +9,7 @@ export default defineConfig({
       enabled: true,
       provider: 'v8',
       include: ['src/**/*.ts'],
+      exclude: ['src/.types/**'],
       reporter: ['text', 'lcov'],
       reportOnFailure: true,
       thresholds: {

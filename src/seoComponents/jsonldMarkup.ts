@@ -92,7 +92,7 @@ export const jsonLDMarkup = ({
 
   return `
   <script type="application/ld+json">
-${JSON.stringify(data, null, 2).replaceAll('<', '\\u003c')}
+${JSON.stringify(data).replaceAll('<', '\\u003c')}
   </script>
 `
 }
