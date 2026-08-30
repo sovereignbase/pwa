@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/sovereignbase/pwa/compare/v1.0.1...v1.0.2) (2026-08-30)
+
+
+### Bug Fixes
+
+* strengthen generated document security ([f167ffe](https://github.com/sovereignbase/pwa/commit/f167ffe5f6871e422dde03e1c24871e916d0f6d9))
+
 ## [1.0.1](https://github.com/sovereignbase/pwa/compare/v1.0.0...v1.0.1) (2026-08-30)
 
 
