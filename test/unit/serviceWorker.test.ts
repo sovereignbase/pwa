@@ -1,4 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { checkForUpdate } from '../../src/checkForUpdate/index.js'
 
 type Listener = (event: any) => void
 
@@ -221,6 +222,17 @@ describe('generated Service Worker behavior', () => {
     listeners.fetch(stale.event)
     expect(await (await stale.response()).text()).toBe('cached')
     await stale.done()
+
+    fetchMock.mockRejectedValue(new TypeError('Failed to fetch'))
+    const cachedOffline = fetchEvent('https://example.test/cached.txt')
+    listeners.fetch(cachedOffline.event)
+    expect(await (await cachedOffline.response()).text()).toBe('cached')
+    await expect(cachedOffline.done()).resolves.toBeUndefined()
+
+    const missingOffline = fetchEvent('https://example.test/missing.txt')
+    listeners.fetch(missingOffline.event)
+    expect((await missingOffline.response()).status).toBe(503)
+    await expect(missingOffline.done()).resolves.toBeUndefined()
   })
 
   it('bypasses configured path, absolute URL, and non-GET requests', async () => {
@@ -233,6 +245,7 @@ describe('generated Service Worker behavior', () => {
       expect(request.hasResponse()).toBe(false)
       await request.done()
     }
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('serves a direct build-ID navigation from the network', async () => {
@@ -248,6 +261,14 @@ describe('generated Service Worker behavior', () => {
     expect(fetchMock).toHaveBeenCalledWith(request.request, {
       cache: 'no-store',
     })
+
+    fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    const offline = fetchEvent('https://example.test/build-id', {
+      mode: 'navigate',
+    })
+    listeners.fetch(offline.event)
+    expect((await offline.response()).status).toBe(503)
+    await expect(offline.done()).resolves.toBeUndefined()
   })
 
   it('serves a directly navigated precached asset as a static file', async () => {
@@ -261,23 +282,37 @@ describe('generated Service Worker behavior', () => {
     await request.done()
   })
 
-  it('checks the build ID and updates only when a newer build exists', async () => {
+  it('checks the build ID once and updates only when a newer build exists', async () => {
     fetchMock.mockResolvedValueOnce(new Response('build-2'))
-    const changed = fetchEvent('https://example.test/api/check')
-    listeners.fetch(changed.event)
-    await changed.done()
+    await checkForUpdate(
+      worker as unknown as ServiceWorkerGlobalScope,
+      '/build-id',
+      'build-1'
+    )
     expect(worker.registration.update).toHaveBeenCalledOnce()
 
     fetchMock.mockResolvedValueOnce(new Response('missing', { status: 404 }))
-    const missing = fetchEvent('https://example.test/api/check')
-    listeners.fetch(missing.event)
-    await missing.done()
+    await checkForUpdate(
+      worker as unknown as ServiceWorkerGlobalScope,
+      '/build-id',
+      'build-1'
+    )
+    expect(worker.registration.update).toHaveBeenCalledOnce()
+
+    fetchMock.mockResolvedValueOnce(new Response('build-1'))
+    await checkForUpdate(
+      worker as unknown as ServiceWorkerGlobalScope,
+      '/build-id',
+      'build-1'
+    )
     expect(worker.registration.update).toHaveBeenCalledOnce()
 
     fetchMock.mockRejectedValueOnce(new Error('offline'))
-    const offline = fetchEvent('https://example.test/api/check')
-    listeners.fetch(offline.event)
-    await offline.done()
+    await checkForUpdate(
+      worker as unknown as ServiceWorkerGlobalScope,
+      '/build-id',
+      'build-1'
+    )
     expect(worker.registration.update).toHaveBeenCalledOnce()
   })
 })

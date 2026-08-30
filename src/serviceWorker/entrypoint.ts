@@ -1,4 +1,5 @@
 import type { DocumentMarkupOptions } from '../types/index.js'
+import { checkForUpdate } from '../checkForUpdate/index.js'
 import { documentMarkup } from '../htmlDocument/index.js'
 
 declare const buildId: string
@@ -31,7 +32,10 @@ declare const stylesheet: string
 const worker = self as unknown as ServiceWorkerGlobalScope
 const cachePrefix = '@sovereignbase/pwa:'
 const cacheName = `${cachePrefix}${buildId}`
-const backgroundStartup = Promise.resolve(customWaitUntil?.())
+const backgroundStartup = Promise.all([
+  Promise.resolve(customWaitUntil?.()),
+  checkForUpdate(worker, buildIdUrl, buildId),
+]).then(() => undefined)
 
 customInitialize?.()
 
@@ -41,20 +45,20 @@ const routes = Object.freeze({
 })
 
 worker.addEventListener('fetch', (event) => {
-  event.waitUntil(Promise.all([backgroundStartup, checkForUpdate()]))
+  event.waitUntil(backgroundStartup)
 
   if (event.request.method !== 'GET' || bypassesServiceWorker(event.request)) {
     return
   }
 
-  if (new URL(event.request.url).pathname === buildIdUrl) {
-    event.respondWith(fetch(event.request, { cache: 'no-store' }))
+  const pathname = new URL(event.request.url).pathname
+  if (pathname === buildIdUrl) {
+    event.respondWith(fetchOrUnavailable(event.request, { cache: 'no-store' }))
     return
   }
 
   const route =
-    event.request.mode === 'navigate' &&
-    !staticRoutes.includes(new URL(event.request.url).pathname)
+    event.request.mode === 'navigate' && !staticRoutes.includes(pathname)
       ? routes.document
       : routes.static
   event.respondWith(route(event))
@@ -98,18 +102,42 @@ async function buildDocumentResponse(event: FetchEvent): Promise<Response> {
 
 async function negotiateCache(event: FetchEvent): Promise<Response> {
   const cached = await caches.match(event.request)
-  const updated = fetch(event.request).then(async (response) => {
+  const updated = fetchAndCache(event.request)
+
+  if (cached === undefined) {
+    return updated.catch(() => unavailableResponse())
+  }
+
+  event.waitUntil(updated.catch(() => undefined))
+  return cached
+}
+
+async function fetchAndCache(request: Request): Promise<Response> {
+  return fetch(request).then(async (response) => {
     if (response.ok) {
       const cache = await caches.open(cacheName)
-      await cache.put(event.request, response.clone())
+      await cache.put(request, response.clone())
     }
     return response
   })
+}
 
-  if (cached === undefined) return updated
+async function fetchOrUnavailable(
+  request: Request,
+  options?: RequestInit
+): Promise<Response> {
+  try {
+    return await fetch(request, options)
+  } catch {
+    return unavailableResponse()
+  }
+}
 
-  event.waitUntil(updated)
-  return cached
+function unavailableResponse(): Response {
+  return new Response(null, {
+    status: 503,
+    statusText: 'Service Unavailable',
+  })
 }
 
 async function renderDocument(
@@ -175,17 +203,6 @@ function bypassesServiceWorker(request: Request): boolean {
   }
 
   return false
-}
-
-async function checkForUpdate(): Promise<void> {
-  try {
-    const response = await fetch(buildIdUrl, { cache: 'no-store' })
-    if (!response.ok || (await response.text()).trim() === buildId) return
-
-    await worker.registration.update()
-  } catch {
-    // Offline version checks must not prevent offline responses.
-  }
 }
 
 async function activateServiceWorker(): Promise<void> {

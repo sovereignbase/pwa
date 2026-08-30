@@ -1,14 +1,22 @@
-import { createHash } from 'node:crypto'
 import { existsSync, type PathLike } from 'node:fs'
-import { cp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
-import { basename, dirname, extname, join, relative, sep } from 'node:path'
+import { cp, mkdir, writeFile } from 'node:fs/promises'
+import { basename, join } from 'node:path'
 import type { BCP47LanguageTag, OpenGraphLocale } from '@sovereignbase/utils'
 import type { DocumentMarkupOptions, HTTPSUrl, URLPath } from './types/index.js'
-import { cspHash } from './cspHash/index.js'
+import { baseSecurityHeaders } from './baseSecurityHeaders/index.js'
+import { buildScriptDirectory } from './buildScriptDirectory/index.js'
+import { contentBuildId } from './contentBuildId/index.js'
+import { contentSecurityPolicy } from './contentSecurityPolicy/index.js'
 import { documentMarkup } from './htmlDocument/index.js'
+import { functionExpression } from './functionExpression/index.js'
+import { globRule } from './globRule/index.js'
+import { headersMarkup } from './headersMarkup/index.js'
+import { localizeConfig } from './localizeConfig/index.js'
 import minifyCss from './minifyCss/index.js'
 import minifyHtml from './minifyHtml/index.js'
 import minifyJs from './minifyJs/index.js'
+import { publicFiles } from './publicFiles/index.js'
+import { securityHeaders } from './securityHeaders/index.js'
 import {
   webManifest,
   type WebManifestOptions,
@@ -30,7 +38,7 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
   const languages = [
     ...new Set([config.defaultLanguage, ...config.alternateLanguages]),
   ]
-  const minifyPasses = config.minifyPasses ?? 3
+  const minifyPasses = 3
   const buildIdUrl = '/@sovereignbase/pwa/pwaize-build-id.txt'
   const serviceWorkerPath = '/ServiceWorker'
 
@@ -205,326 +213,6 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
   )
 }
 
-async function contentSecurityPolicy(documents: string[]): Promise<string> {
-  const inlineScripts = documents.flatMap((document) =>
-    [...document.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].map(
-      (match) => match[1]
-    )
-  )
-  const inlineStyles = documents.flatMap((document) =>
-    [...document.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map(
-      (match) => match[1]
-    )
-  )
-  const hashes = async (sources: string[]): Promise<string> =>
-    (
-      await Promise.all(
-        [...new Set(sources.length === 0 ? [''] : sources)].map(cspHash)
-      )
-    )
-      .map((hash) => `'${hash}'`)
-      .join(' ')
-  const scriptHashes = await hashes(inlineScripts)
-  const styleHashes = await hashes(inlineStyles)
-
-  return [
-    `default-src 'self'`,
-    `base-uri 'self'`,
-    `connect-src 'self' https: wss:`,
-    `font-src 'self' data:`,
-    `form-action 'self'`,
-    `frame-ancestors 'none'`,
-    `img-src 'self' data: https:`,
-    `manifest-src 'self'`,
-    `media-src 'self' data: blob: https:`,
-    `object-src 'none'`,
-    `require-trusted-types-for 'script'`,
-    `script-src 'self' 'unsafe-inline' ${scriptHashes} 'strict-dynamic'`,
-    `script-src-attr 'none'`,
-    `script-src-elem 'self' 'unsafe-inline' ${scriptHashes}`,
-    `style-src 'self' 'unsafe-inline' ${styleHashes}`,
-    `style-src-attr 'none'`,
-    `trusted-types *`,
-    `worker-src 'self' blob:`,
-    'upgrade-insecure-requests',
-  ].join('; ')
-}
-
-function headersMarkup(headers: Record<string, string>): string {
-  return `${Object.entries(headers)
-    .map(([name, value]) => `  ${name}: ${value}`)
-    .join('\n')}\n`
-}
-
-function securityHeaders(
-  contentSecurityPolicy: string
-): Record<string, string> {
-  return {
-    'Content-Security-Policy': contentSecurityPolicy,
-    ...baseSecurityHeaders(),
-  }
-}
-
-function baseSecurityHeaders(): Record<string, string> {
-  return {
-    'Cross-Origin-Opener-Policy': 'same-origin',
-    'Cross-Origin-Resource-Policy': 'same-origin',
-    'Referrer-Policy': 'strict-origin-when-cross-origin',
-    'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
-    'X-Content-Type-Options': 'nosniff',
-    'X-Frame-Options': 'DENY',
-  }
-}
-
-async function buildScriptDirectory(
-  sourceDirectory: string,
-  outputDirectory: string,
-  passes: number,
-  root = sourceDirectory
-): Promise<void> {
-  for (const entry of await readdir(sourceDirectory, { withFileTypes: true })) {
-    const source = join(sourceDirectory, entry.name)
-    if (entry.isDirectory()) {
-      await buildScriptDirectory(source, outputDirectory, passes, root)
-      continue
-    }
-    if (!entry.isFile() || entry.name.endsWith('.d.ts')) continue
-
-    const relativePath = relative(root, source)
-    const extension = extname(relativePath)
-    const output = join(
-      outputDirectory,
-      /\.[cm]?[jt]sx?$/.test(extension)
-        ? `${relativePath.slice(0, -extension.length)}.js`
-        : relativePath
-    )
-    await mkdir(dirname(output), { recursive: true })
-    if (/\.[cm]?[jt]sx?$/.test(extension)) {
-      await writeFile(output, await minifyJs(source, { passes }))
-    } else {
-      await cp(source, output)
-    }
-  }
-}
-
-async function contentBuildId(
-  outputDirectory: string,
-  files: string[],
-  configuration: unknown
-): Promise<string> {
-  const hash = createHash('sha256')
-  hash.update(JSON.stringify(configuration))
-  for (const file of files) {
-    hash.update(file)
-    hash.update(
-      await readFile(join(outputDirectory, ...file.slice(1).split('/')))
-    )
-  }
-  return hash.digest('hex')
-}
-
-async function publicFiles(
-  directory: string,
-  root = directory
-): Promise<string[]> {
-  const entries = await readdir(directory, { withFileTypes: true })
-  const files: string[] = []
-
-  for (const entry of entries) {
-    const path = join(directory, entry.name)
-    if (entry.isDirectory()) {
-      files.push(...(await publicFiles(path, root)))
-    } else if (entry.isFile() && entry.name !== '_headers') {
-      files.push(`/${relative(root, path).split(sep).join('/')}`)
-    }
-  }
-
-  return files.sort()
-}
-
-function globRule(pattern: string | RegExp): {
-  absolute: boolean
-  flags: string
-  source: string
-} {
-  if (pattern instanceof RegExp) {
-    return { absolute: true, flags: pattern.flags, source: pattern.source }
-  }
-
-  let source = '^'
-  for (let index = 0; index < pattern.length; index += 1) {
-    const character = pattern[index]
-    if (character === '*') {
-      if (pattern[index + 1] === '*') {
-        source += '.*'
-        index += 1
-      } else {
-        source += '[^/]*'
-      }
-    } else if (character === '?') {
-      source += '.'
-    } else {
-      source += character.replace(/[|\\{}()[\]^$+?.]/g, '\\$&')
-    }
-  }
-
-  return {
-    absolute: pattern.includes('://'),
-    flags: '',
-    source: `${source}$`,
-  }
-}
-
-function functionExpression(
-  callback: (...arguments_: never[]) => unknown
-): string {
-  const source = callback.toString()
-  if (/^(?:async\s+)?function\b|^(?:async\s+)?\(/.test(source)) {
-    return `(${source})`
-  }
-  if (source.startsWith('async ')) {
-    return `(async function ${source.slice('async '.length)})`
-  }
-  return `(function ${source})`
-}
-
-function localizeConfig(
-  config: PWAizeConfig,
-  language: BCP47LanguageTag,
-  languages: BCP47LanguageTag[]
-): {
-  document: Omit<
-    DocumentMarkupOptions,
-    'entrypoint' | 'language' | 'manifestUrl' | 'stylesheet'
-  >
-  manifest: WebManifestOptions
-} {
-  const get = <T>(value: Localized<T> | undefined, empty: T): T =>
-    localizedValue(value, language, config.defaultLanguage, empty)
-  const applicationName = get(config.applicationName, '')
-  const description = get(config.description, '')
-  const icon192 = get<string>(config.icons.icon192, '')
-  const icon512 = get<string>(config.icons.icon512, '')
-  const origin = get<string>(config.origin, '')
-  const pageUrl = (
-    origin === '' ? '' : new URL(`/${language}`, origin).href
-  ) as HTTPSUrl
-  const organizationLogo = (
-    origin === '' || icon512 === '' ? '' : new URL(icon512, origin).href
-  ) as HTTPSUrl
-  const themeColor = get(config.themeColor, '')
-  const title = get(config.title, '')
-
-  return {
-    document: {
-      applicationName,
-      appleStatusBarStyle: get(config.appleStatusBarStyle, 'black-translucent'),
-      appleTouchIconUrl: get(
-        config.icons.appleTouchIconUrl,
-        icon192 as URLPath
-      ),
-      bodyMarkup: get(config.bodyMarkup, ''),
-      colorScheme: get(config.colorScheme, 'light dark'),
-      headMarkup: get(config.headMarkup, ''),
-      iconUrl: get(config.icons.iconUrl, icon512 as URLPath),
-      maskIconColor: themeColor,
-      maskIconUrl: get(config.icons.maskIconUrl, '' as URLPath),
-      seo: {
-        jsonLD: {
-          application: {
-            applicationCategory: get(config.application?.category, ''),
-            browserRequirements: get(
-              config.application?.browserRequirements,
-              ''
-            ),
-            featureList: get(config.application?.featureList, []),
-            inLanguage: languages,
-            name: applicationName,
-            operatingSystem: get(config.application?.operatingSystem, ''),
-            url: origin as HTTPSUrl,
-          },
-          organization: {
-            logo: get(config.organization?.logoUrl, organizationLogo),
-            name: get(config.organization?.name, applicationName),
-            url: get<string>(config.organization?.url, origin) as HTTPSUrl,
-          },
-          page: {
-            description,
-            inLanguage: language,
-            name: title,
-            url: pageUrl,
-          },
-          site: { name: applicationName, url: origin as HTTPSUrl },
-        },
-        languageLinks: {
-          alternateLanguages: languages,
-          canonicalLanguage: config.canonicalLanguage,
-          defaultLanguage: config.defaultLanguage,
-          host: (origin === ''
-            ? ''
-            : new URL(origin).host) as `${string}.${string}`,
-        },
-        openGraph: {
-          description,
-          imageAlt: get(config.socialImage.alt, ''),
-          imageHeight: get(config.socialImage.height, 630),
-          imageUrl: get(config.socialImage.url, '' as HTTPSUrl),
-          imageWidth: get(config.socialImage.width, 1200),
-          locale: get(config.openGraphLocale, '' as OpenGraphLocale),
-          siteName: applicationName,
-          title,
-          url: pageUrl,
-        },
-        twitter: {
-          creator: get(config.twitter.creator, '' as `@${string}`),
-          description,
-          imageAlt: get(config.socialImage.alt, ''),
-          imageUrl: get(config.socialImage.url, '' as HTTPSUrl),
-          site: get(config.twitter.site, '' as `@${string}`),
-          title,
-          url: pageUrl,
-        },
-      },
-      themeColor,
-      title,
-    },
-    manifest: {
-      backgroundColor: get(config.backgroundColor, themeColor),
-      categories: get(config.manifest?.categories, []),
-      description,
-      display: get(config.manifest?.display, 'standalone'),
-      icon192: icon192 as URLPath,
-      icon512: icon512 as URLPath,
-      id: get(config.manifest?.id, '/' as URLPath),
-      lang: language,
-      maskableIcon512: get(config.icons.maskableIcon512, icon512 as URLPath),
-      name: applicationName,
-      orientation: get(config.manifest?.orientation, 'any'),
-      scope: get(config.manifest?.scope, '/' as URLPath),
-      screenshots: get(config.manifest?.screenshots, []),
-      shortName: get(config.shortName, applicationName),
-      shortcuts: get(config.manifest?.shortcuts, []),
-      startUrl: `/${language}`,
-      themeColor,
-    },
-  }
-}
-
-function localizedValue<T>(
-  value: Localized<T> | undefined,
-  language: BCP47LanguageTag,
-  defaultLanguage: BCP47LanguageTag,
-  empty: T
-): T {
-  if (value === undefined) return empty
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    return value as T
-  }
-
-  const values = value as Partial<Record<BCP47LanguageTag, T>>
-  return values[language] ?? values[defaultLanguage] ?? empty
-}
-
 /** A shared value or values selected by BCP 47 language tag. */
 export type Localized<T> = T | Partial<Record<BCP47LanguageTag, T>>
 
@@ -567,7 +255,6 @@ export type PWAizeConfig = {
     screenshots?: Localized<WebManifestScreenshot[]>
     shortcuts?: Localized<WebManifestShortcut[]>
   }
-  minifyPasses?: number
   openGraphLocale: Localized<OpenGraphLocale>
   organization?: {
     logoUrl?: Localized<HTTPSUrl>

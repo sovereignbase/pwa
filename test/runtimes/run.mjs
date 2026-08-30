@@ -54,7 +54,6 @@ try {
     outDir: output,
     assetsDir: join(source, 'assets'),
     i18nDir: join(source, 'i18n'),
-    minifyPasses: 1,
   })
 
   const installer = await readFile(join(output, 'web', 'index.html'), 'utf8')

@@ -36,7 +36,6 @@ await pwaize({
     maskableIcon512: '/assets/logo.svg',
     maskIconUrl: '/assets/logo.svg',
   },
-  minifyPasses: 3,
   openGraphLocale: { en: 'en_US', fi: 'fi_FI' },
   origin: 'https://example.test',
   outDir: outputDirectory,

@@ -21,7 +21,6 @@ describe('pwaize', () => {
     config._headersFile = true
     config.assetsDir = join(project, 'assets')
     config.i18nDir = join(project, 'i18n')
-    config.minifyPasses = 1
     config.serviceWorker = {
       bypass: [
         '/api/**',
@@ -163,7 +162,6 @@ describe('pwaize', () => {
 
   it('keeps the build ID stable until build content changes', async () => {
     const config = configuration(project, output)
-    config.minifyPasses = 1
     const buildIdPath = join(
       output,
       'web',

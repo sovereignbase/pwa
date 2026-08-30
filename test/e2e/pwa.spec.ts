@@ -65,6 +65,12 @@ test('installs the Service Worker, renders the app, and works offline', async ({
   )
 
   await context.setOffline(true)
+  expect(
+    await page.evaluate(async () => {
+      const response = await fetch('/not-precached.txt')
+      return response.status
+    })
+  ).toBe(503)
   await page.reload()
   await page.waitForFunction(
     () =>

@@ -145,8 +145,8 @@ SEO metadata, bundled stylesheet, and bundled entrypoint.
   application routes use document rendering.
 - Navigation and static resources use stale-while-revalidate caching.
 - Activation deletes old build caches and claims clients.
-- The worker checks a deterministic content build ID and requests an update when
-  deployed content changes.
+- When its script initializes, the worker checks a deterministic content build
+  ID once and requests an update when deployed content has changed.
 - Repeated builds reuse unchanged JavaScript, CSS, and HTML minification results.
 - Generated `_headers` keeps the Service Worker and build ID uncached and gives
   the assets directory a one-year immutable browser cache.
