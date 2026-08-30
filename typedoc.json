@@ -8,6 +8,6 @@
     "WebManifestScreenshot",
     "WebManifestShortcut"
   ],
-  "out": "docs/api",
+  "out": "docs",
   "favicon": "https://sovereignbase.dev/sovereignbase_logo.png"
 }
