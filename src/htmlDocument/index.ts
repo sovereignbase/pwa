@@ -1,6 +1,6 @@
-import { DocumentMarkupOptions } from "../.types/index.js";
-import { cspHash } from "../cspHash/index.js";
-import * as seo from "../seoComponents/index.js";
+import { DocumentMarkupOptions } from '../.types/index.js'
+import { cspHash } from '../cspHash/index.js'
+import * as seo from '../seoComponents/index.js'
 /**
  * Generates a complete HTML document for a web application.
  *
@@ -19,17 +19,17 @@ export const documentMarkup = async ({
   applicationName,
   themeColor,
   nonce,
-  bodyMarkup = "",
-  headMarkup = "",
-  stylesheet = "",
-  entrypoint = "",
+  bodyMarkup = '',
+  headMarkup = '',
+  stylesheet = '',
+  entrypoint = '',
   iconUrl,
   appleTouchIconUrl,
   maskIconUrl,
   manifestUrl,
   maskIconColor = themeColor,
-  colorScheme = "light dark",
-  appleStatusBarStyle = "black-translucent",
+  colorScheme = 'light dark',
+  appleStatusBarStyle = 'black-translucent',
 }: DocumentMarkupOptions): Promise<string> => `<!DOCTYPE html>
 <html lang="${language}">
   <head>
@@ -49,18 +49,18 @@ export const documentMarkup = async ({
       content="${appleStatusBarStyle}"
     />
 
-    ${iconUrl ? `<link rel="icon" href="${iconUrl}" />` : ""}
+    ${iconUrl ? `<link rel="icon" href="${iconUrl}" />` : ''}
     ${
-      appleTouchIconUrl ?
-        `<link rel="apple-touch-icon" sizes="180x180" href="${appleTouchIconUrl}" />`
-      : ""
+      appleTouchIconUrl
+        ? `<link rel="apple-touch-icon" sizes="180x180" href="${appleTouchIconUrl}" />`
+        : ''
     }
     ${
-      maskIconUrl ?
-        `<link rel="mask-icon" href="${maskIconUrl}" color="${maskIconColor}" />`
-      : ""
+      maskIconUrl
+        ? `<link rel="mask-icon" href="${maskIconUrl}" color="${maskIconColor}" />`
+        : ''
     }
-    ${manifestUrl ? `<link rel="manifest" href="${manifestUrl}" />` : ""}
+    ${manifestUrl ? `<link rel="manifest" href="${manifestUrl}" />` : ''}
 
 ${seo.jsonLDMarkup({ site, application, page, organization })}
 ${seo.languageLinksMarkup}({})
@@ -71,22 +71,22 @@ ${seo.languageLinksMarkup}({})
     ${headMarkup}
 
     ${
-      stylesheet ?
-        `<style integrity="${await cspHash(stylesheet)}">
+      stylesheet
+        ? `<style integrity="${await cspHash(stylesheet)}">
 ${stylesheet}
     </style>`
-      : ""
+        : ''
     }
 
   </head>
   <body>
 ${bodyMarkup}
 ${
-  entrypoint ?
-    `<script type="module" integrity="${await cspHash(entrypoint)}">
+  entrypoint
+    ? `<script type="module" integrity="${await cspHash(entrypoint)}">
 ${entrypoint}
     </script>`
-  : ""
+    : ''
 }
   </body>
-</html>`;
+</html>`

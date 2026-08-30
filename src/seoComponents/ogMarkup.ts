@@ -1,4 +1,4 @@
-import type { OpenGraphLocale } from "@sovereignbase/utils";
+import type { OpenGraphLocale } from '@sovereignbase/utils'
 
 /**
  * Generates Open Graph metadata markup.
@@ -22,7 +22,7 @@ export const ogMarkup = (
   imageUrl: string,
   imageAlt: string,
   imageWidth: number = 1200,
-  imageHeight: number = 630,
+  imageHeight: number = 630
 ) => `
   <meta property="og:locale" content="${locale}" />
   <meta property="og:type" content="website" />
@@ -34,4 +34,4 @@ export const ogMarkup = (
   <meta property="og:image:width" content="${imageWidth}" />
   <meta property="og:image:height" content="${imageHeight}" />
   <meta property="og:image:alt" content="${imageAlt}" />
-`;
+`

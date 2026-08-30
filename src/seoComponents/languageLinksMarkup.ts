@@ -1,4 +1,4 @@
-import type { BCP47LanguageTag } from "@sovereignbase/utils";
+import type { BCP47LanguageTag } from '@sovereignbase/utils'
 
 /**
  * Generates canonical and language-alternate link markup for a localized page.
@@ -19,14 +19,14 @@ export const languageLinksMarkup = (
   defaultLanguage: BCP47LanguageTag,
   canonicalLanguage: BCP47LanguageTag,
   alternateLanguages: BCP47LanguageTag[],
-  pathSuffix: "" | `/${string}` = "",
+  pathSuffix: '' | `/${string}` = ''
 ) => `
   <link rel="canonical" href="https://${host}/${canonicalLanguage}${pathSuffix}" />
   ${(() => {
-    let markup = ``;
+    let markup = ``
     for (const language of alternateLanguages)
-      markup += `  <link rel="alternate" hreflang="${language}" href="https://${host}/${language}${pathSuffix}" />`;
-    return markup;
+      markup += `  <link rel="alternate" hreflang="${language}" href="https://${host}/${language}${pathSuffix}" />`
+    return markup
   })()}
   <link rel="alternate" hreflang="x-default" href="https://${host}/${defaultLanguage}${pathSuffix}" />
-`;
+`

@@ -16,7 +16,7 @@ export const twitterMarkup = (
   imageUrl: string,
   imageAlt: string,
   site: `@${string}`,
-  creator: `@${string}`,
+  creator: `@${string}`
 ) => `
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="${title}" />
@@ -26,4 +26,4 @@ export const twitterMarkup = (
   <meta name="twitter:image:alt" content="${imageAlt}" />
   <meta name="twitter:site" content="${site}" />
   <meta name="twitter:creator" content="${creator}" />
-`;
+`

@@ -1,133 +1,131 @@
-import { build, initialize } from "esbuild";
-import {
-  FileHandle,
-  readFile,
-  writeFile,
-  mkdtempDisposable,
-} from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import type { PathLike } from "node:fs";
-import { BCP47LanguageTag } from "@sovereignbase/utils";
+import type { PathLike } from 'node:fs'
+import type { FileHandle } from 'node:fs/promises'
+import { cp, mkdir, mkdtempDisposable, readFile, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { basename, join } from 'node:path'
+import type { BCP47LanguageTag } from '@sovereignbase/utils'
+import { build, type Plugin } from 'esbuild'
+import minifyCss from './minifyCss/index.js'
+import minifyJs from './minifyJs/index.js'
 
-import { build } from "esbuild";
-import { readFile, writeFile } from "node:fs/promises";
-import { minify } from "terser";
+export async function pwaize(config: PWAizeConfig): Promise<void> {
+  await using temporaryDirectory = await mkdtempDisposable(
+    join(tmpdir(), '@sovereignbase-pwa-')
+  )
 
-/** @returns {import('esbuild').Plugin} */
-const terser = (outfile) => ({
-  name: "terser",
+  const outputDirectory = join(config.outDir.toString(), 'web')
+  const buildId = crypto.randomUUID()
+  const minifyPasses = config.minifyPasses ?? 3
 
-  setup(build) {
-    build.onEnd(async (result) => {
-      if (result.errors.length) return;
-
-      const source = await readFile(outfile, "utf8");
-      const output = await minify(source, {
-        compress: {
-          passes: 3,
-        },
-        mangle: true,
-        module: true,
-      });
-    });
-  },
-});
-
-export async function pwaize(config: PWAizeConfig) {
-  await using temp = await mkdtempDisposable(join(tmpdir(), "pwaize-"));
-
-  const buildId = crypto.randomUUID();
-
+  await mkdir(outputDirectory, { recursive: true })
   await writeFile(
-    join(config.outDir.toString(), "web/pwaize-build-id.txt"),
-    buildId,
-  );
+    join(outputDirectory, '@sovereignbase/pwa:pwaize-build-id.txt'),
+    buildId
+  )
 
-  const entrypoint = (
-    await build({
-      entryPoints: [config.entrypoint.toString()],
-      write: false,
-      bundle: true,
-      minify: true,
-      treeShaking: true,
-      plugins: [contentMinifierPlugin()],
+  for (const directory of [config.assetsDir, config.i18nDir]) {
+    if (directory === undefined) continue
+
+    const sourceDirectory = directory.toString()
+    await cp(sourceDirectory, join(outputDirectory, basename(sourceDirectory)), {
+      recursive: true,
     })
-  ).outputFiles[0].text;
+  }
 
-  const serviceWorkerPath = join(temp.path, "sw.js");
+  const entrypointBuild = await build({
+    entryPoints: [config.entrypoint.toString()],
+    bundle: true,
+    minify: true,
+    treeShaking: true,
+    write: false,
+  })
+  const entrypoint = await minifyJs(
+    entrypointBuild.outputFiles[0].text,
+    minifyPasses
+  )
+
+  const stylesheetBuild = await build({
+    entryPoints: [config.stylesheet.toString()],
+    bundle: true,
+    minify: true,
+    treeShaking: true,
+    write: false,
+  })
+  const stylesheet = minifyCss(stylesheetBuild.outputFiles[0].text)
+
+  const serviceWorkerPath = join(temporaryDirectory.path, 'ServiceWorker')
 
   await build({
-    entryPoints: ["./src/serviceWorker/entrypoint.js"],
+    entryPoints: [new URL('./serviceWorker/entrypoint.js', import.meta.url).pathname],
     outfile: serviceWorkerPath,
     bundle: true,
     minify: true,
     treeShaking: true,
     define: {
-      customInitialize:
-        typeof config.serviceWorker?.initialize === "function" ?
-          config.serviceWorker.initialize.toString()
-        : "undefined",
-      customWaitUntil:
-        typeof config.serviceWorker?.waitUntil === "function" ?
-          config.serviceWorker.waitUntil.toString()
-        : "undefined",
-      entrypoint: JSON.stringify(entrypoint),
       buildId: JSON.stringify(buildId),
+      customInitialize:
+        config.serviceWorker?.initialize === undefined
+          ? 'undefined'
+          : `(${config.serviceWorker.initialize.toString()})`,
+      customWaitUntil:
+        config.serviceWorker?.waitUntil === undefined
+          ? 'undefined'
+          : `(${config.serviceWorker.waitUntil.toString()})`,
+      entrypoint: JSON.stringify(entrypoint),
+      stylesheet: JSON.stringify(stylesheet),
     },
-    plugins: [contentMinifierPlugin()],
-  });
-
-  const serviceWorker = await readFile(serviceWorkerPath, "utf8");
-
-  const collapsed = serviceWorker.replace(/[\r\n]+/g, "");
+    plugins: [terserPlugin(serviceWorkerPath, minifyPasses)],
+  })
 
   await writeFile(
-    join(config.outDir.toString(), "web/ServiceWorker"),
-    collapsed,
-  );
+    join(outputDirectory, 'ServiceWorker'),
+    await readFile(serviceWorkerPath, 'utf8')
+  )
 }
 
+const terserPlugin = (outputFile: string, passes: number): Plugin => ({
+  name: '@sovereignbase/pwa:terser',
+
+  setup(build): void {
+    build.onEnd(async (result) => {
+      if (result.errors.length > 0) return
+
+      const source = await readFile(outputFile, 'utf8')
+      await writeFile(outputFile, await minifyJs(source, passes))
+    })
+  },
+})
+
 export type PWAizeConfig = {
-  defaultLanguage: BCP47LanguageTag;
-  canonicalLanguage: BCP47LanguageTag;
-  alterantiveLanguages: Array<BCP47LanguageTag>;
+  defaultLanguage: BCP47LanguageTag
+  canonicalLanguage: BCP47LanguageTag
+  alternateLanguages: BCP47LanguageTag[]
 
-  /** Stylesheet included in the generated PWA. */
-  stylesheet: string;
+  /** CSS entrypoint bundled and inlined into every generated document. */
+  stylesheet: PathLike | FileHandle
 
-  /** Application entrypoint included in the generated PWA. */
-  entrypoint: string;
+  /** JavaScript entrypoint bundled and inlined into every generated document. */
+  entrypoint: PathLike | FileHandle
 
-  /** Directory where the generated PWA files are written. */
-  outDir: PathLike | FileHandle;
+  /** Directory where generated PWA files are written. */
+  outDir: PathLike | FileHandle
 
-  /** Copied in to outDir root, referencable in code by relative url `/${dirName}*` */
-  assetsDir?: PathLike | FileHandle;
-  /** Bundled in to outDir with splitting referencable in code by relative url `/${dirName}*` */
-  i18nDir?: PathLike | FileHandle;
+  /** Directory copied below `outDir/web` and included in the precache. */
+  assetsDir?: PathLike | FileHandle
 
-  /** Service Worker startup behavior. */
+  /** Directory copied below `outDir/web` and included in the precache. */
+  i18nDir?: PathLike | FileHandle
+
+  /** Number of outer Terser rounds and compression passes per round. */
+  minifyPasses?: number
+
   serviceWorker?: {
-    /**
-     * Runs synchronously at the top level whenever the Service Worker starts.
-     *
-     * Use for immediate initialization that must complete as part of evaluating
-     * the Service Worker script.
-     */
-    initialize?: () => void;
+    /** Runs synchronously whenever the Service Worker starts. */
+    initialize?: () => void
 
-    /**
-     * Runs asynchronously in the background whenever the Service Worker starts.
-     *
-     * The returned Promise is passed to `waitUntil` before the Service Worker
-     * responds, extending its lifetime until the work completes without
-     * delaying the response itself.
-     *
-     * Use for startup work that must be allowed to finish but does not need to
-     * block the Service Worker's response.
-     */
-    waitUntil?: () => Promise<void>;
-  };
-  _headersFile?: boolean;
-};
+    /** Background startup work attached to Service Worker events. */
+    waitUntil?: () => Promise<void>
+  }
+
+  _headersFile?: boolean
+}

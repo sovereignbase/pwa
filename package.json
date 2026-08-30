@@ -1,21 +1,52 @@
 {
   "name": "@sovereignbase/pwa",
   "version": "0.0.0",
-  "description": "Pwaize your Web App.",
-  "scripts": {
-    "optimize": "npm run optimize:fonts && npm run optimize:images",
-    "optimize:fonts": "node ./scripts/copyAndOptimizeFonts.js",
-    "optimize:images": "node ./scripts/copyAndOptimizeImages.js",
-    "build": "npm run build:appLoader && npm run build:mainScripts && npm run build:serviceWorker",
-    "build:appLoader": "node ./src/appLoader/build.js",
-    "build:mainScripts": "node ./src/mainScripts/build.js",
-    "build:serviceWorker": "node ./src/serviceWorker/build.js",
-    "dev": "npx wrangler dev",
-    "start": "npm install && npm run optimize && npm run dev",
-    "deploy": "npm run optimize && npx wrangler deploy"
-  },
+  "description": "Build offline-first, search-engine-optimized progressive web applications.",
+  "keywords": [
+    "build-tool",
+    "offline-first",
+    "progressive-web-app",
+    "pwa",
+    "service-worker",
+    "static-site-generation",
+    "typescript"
+  ],
   "license": "Apache-2.0",
   "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "sideEffects": false,
+  "scripts": {
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "build": "npm run build:package && npm run build:docs",
+    "build:package": "tsdown",
+    "build:docs": "typedoc",
+    "typecheck": "tsc --noEmit && tsc --noEmit --project test/tsconfig.json",
+    "test": "npm run build && npm run typecheck && npm run test:vitest && npm run test:e2e",
+    "test:vitest": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "prepare": "husky",
+    "prepublishOnly": "npm test"
+  },
   "dependencies": {
     "@sovereignbase/bytecodec": "^1.7.0",
     "@sovereignbase/utils": "^2.0.0",
@@ -24,5 +55,27 @@
     "html-minifier-terser": "^7.2.0",
     "lightningcss": "^1.33.0",
     "terser": "^5.51.2"
-  }
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.2",
+    "@commitlint/config-conventional": "^21.2.2",
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^26.4.0",
+    "@vitest/coverage-v8": "^4.1.11",
+    "husky": "^9.1.7",
+    "playwright": "^1.62.1",
+    "prettier": "^3.9.6",
+    "tsdown": "^0.22.14",
+    "typedoc": "^0.28.20",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sovereignbase/pwa.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sovereignbase/pwa/issues"
+  },
+  "homepage": "https://sovereignbase.dev/pwa"
 }
