@@ -30,7 +30,8 @@ export const documentMarkup = async ({
   colorScheme = 'light dark',
   appleStatusBarStyle = 'black-translucent',
   seo: documentSEO,
-}: DocumentMarkupOptions): Promise<string> => `<!DOCTYPE html>
+}: DocumentMarkupOptions): Promise<string> =>
+  `<!DOCTYPE html>
 <html lang="${language}">
   <head>
     <meta charset="UTF-8" />
@@ -113,3 +114,5 @@ ${entrypoint}
 }
   </body>
 </html>`
+    .replace(/>\s+</g, '><')
+    .trim()

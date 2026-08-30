@@ -7,10 +7,7 @@ import { documentMarkup } from './htmlDocument/index.js'
 import minifyCss from './minifyCss/index.js'
 import minifyHtml from './minifyHtml/index.js'
 import minifyJs from './minifyJs/index.js'
-import {
-  webManifest,
-  type WebManifestOptions,
-} from './webManifest/index.js'
+import { webManifest, type WebManifestOptions } from './webManifest/index.js'
 
 export async function pwaize(config: PWAizeConfig): Promise<void> {
   const outputDirectory = join(config.outDir.toString(), 'web')
@@ -24,9 +21,13 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
     if (directory === undefined) continue
 
     const sourceDirectory = directory.toString()
-    await cp(sourceDirectory, join(outputDirectory, basename(sourceDirectory)), {
-      recursive: true,
-    })
+    await cp(
+      sourceDirectory,
+      join(outputDirectory, basename(sourceDirectory)),
+      {
+        recursive: true,
+      }
+    )
   }
 
   const stylesheet = await minifyCss(config.stylesheet)
@@ -39,7 +40,6 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
     },
     { passes: minifyPasses }
   )
-  const documents: Record<string, string> = {}
   const languages = [config.defaultLanguage, ...config.alternateLanguages]
 
   for (const language of languages) {
@@ -58,15 +58,6 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
     await mkdir(languageDirectory, { recursive: true })
     await writeFile(join(languageDirectory, 'manifest.webmanifest'), manifest)
 
-    documents[language] = await minifyHtml(
-      await documentMarkup({
-        ...localized.document,
-        language,
-        stylesheet,
-        entrypoint,
-        manifestUrl: manifestPath,
-      })
-    )
     const installerDocument = await minifyHtml(
       await documentMarkup({
         ...localized.document,
@@ -113,6 +104,7 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
     {
       define: {
         buildId: JSON.stringify(buildId),
+        buildIdUrl: JSON.stringify('/@sovereignbase/pwa/pwaize-build-id.txt'),
         bypassRules: JSON.stringify(bypassRules),
         customInitialize:
           config.serviceWorker?.initialize === undefined
@@ -123,14 +115,26 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
             ? 'undefined'
             : `(${config.serviceWorker.waitUntil.toString()})`,
         defaultLanguage: JSON.stringify(config.defaultLanguage),
-        documents: JSON.stringify(documents),
+        documentOptions: JSON.stringify(
+          Object.fromEntries(
+            languages.map((language) => [
+              language,
+              config.languages[language].document,
+            ])
+          )
+        ),
+        entrypoint: JSON.stringify(entrypoint),
         precache: JSON.stringify(precache),
+        stylesheet: JSON.stringify(stylesheet),
       },
       passes: minifyPasses,
     }
   )
 
-  await writeFile(join(outputDirectory, serviceWorkerPath.slice(1)), serviceWorker)
+  await writeFile(
+    join(outputDirectory, serviceWorkerPath.slice(1)),
+    serviceWorker
+  )
 }
 
 async function publicFiles(

@@ -31,4 +31,7 @@ export default defineConfig({
     js: `${apache2Banner}\n`,
   },
   deps: { neverBundle: true },
+  outExtensions({ format }) {
+    return { js: format === 'cjs' ? '.cjs' : '.js' }
+  },
 })
