@@ -5,6 +5,9 @@ test('generates a localized, indexed installer with complete SEO', async ({
 }) => {
   const response = await request.get('/fi/')
   expect(response.ok()).toBe(true)
+  expect(response.headers()['content-security-policy']).toContain(
+    "script-src 'self' 'unsafe-inline' 'sha256-"
+  )
   const markup = await response.text()
 
   expect(markup.split(/\r?\n/)).toHaveLength(1)
@@ -41,6 +44,16 @@ test('installs the Service Worker, renders the app, and works offline', async ({
     '/fi/manifest.webmanifest'
   )
 
+  const onlineResponse = await page.reload()
+  expect(onlineResponse?.headers()['content-security-policy']).toContain(
+    "style-src 'self' 'unsafe-inline' 'sha256-"
+  )
+  await page.waitForFunction(
+    () =>
+      navigator.serviceWorker.controller !== null &&
+      document.documentElement.dataset.ready === 'true'
+  )
+
   await context.setOffline(true)
   await page.reload()
   await page.waitForFunction(
@@ -68,4 +81,23 @@ test('lets bypass globs go directly to the network', async ({ page }) => {
   })
 
   expect(values[1]).toBe(values[0] + 1)
+})
+
+test('serves build and asset URLs directly instead of application HTML', async ({
+  page,
+}) => {
+  await page.goto('/en/')
+  await page.waitForFunction(
+    () =>
+      navigator.serviceWorker.controller !== null &&
+      document.documentElement.dataset.ready === 'true'
+  )
+
+  const response = await page.goto('/@sovereignbase/pwa/pwaize-build-id.txt')
+  expect(response?.headers()['content-type']).toContain('text/plain')
+  await expect(page.locator('body')).toHaveText(/^[0-9a-f]{64}$/)
+
+  const asset = await page.goto('/assets/logo.svg')
+  expect(asset?.headers()['content-type']).toContain('image/svg+xml')
+  expect(await asset?.text()).toContain('<svg')
 })

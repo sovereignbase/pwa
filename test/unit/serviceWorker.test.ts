@@ -52,6 +52,10 @@ describe('generated Service Worker behavior', () => {
     ])
     vi.stubGlobal('customInitialize', initialize)
     vi.stubGlobal('customWaitUntil', startup)
+    vi.stubGlobal('contentSecurityPolicies', {
+      en: "default-src 'self'; script-src 'sha256-en'",
+      fi: "default-src 'self'; script-src 'sha256-fi'",
+    })
     vi.stubGlobal('defaultLanguage', 'en')
     vi.stubGlobal('documentOptions', {
       en: documentOptions('en', 'en_US'),
@@ -59,6 +63,7 @@ describe('generated Service Worker behavior', () => {
     })
     vi.stubGlobal('entrypoint', 'document.documentElement.dataset.ready="true"')
     vi.stubGlobal('precache', ['/index.html', '/asset.txt'])
+    vi.stubGlobal('staticRoutes', ['/asset.txt'])
     vi.stubGlobal('stylesheet', 'body{margin:0}')
     await import('../../src/serviceWorker/entrypoint.js')
   })
@@ -133,6 +138,9 @@ describe('generated Service Worker behavior', () => {
     const first = await finnish.response()
     await finnish.done()
     expect(await first.text()).toContain('<html lang="fi">')
+    expect(first.headers.get('content-security-policy')).toContain(
+      "'sha256-fi'"
+    )
     expect(first.headers.get('x-pwaize-build-id')).toBe('build-1')
 
     responses.set(
@@ -220,6 +228,32 @@ describe('generated Service Worker behavior', () => {
     }
   })
 
+  it('serves a direct build-ID navigation from the network', async () => {
+    const request = fetchEvent('https://example.test/build-id', {
+      mode: 'navigate',
+    })
+    listeners.fetch(request.event)
+
+    expect(await (await request.response()).text()).toBe(
+      'network:https://example.test/build-id'
+    )
+    await request.done()
+    expect(fetchMock).toHaveBeenCalledWith(request.request, {
+      cache: 'no-store',
+    })
+  })
+
+  it('serves a directly navigated precached asset as a static file', async () => {
+    responses.set('https://example.test/asset.txt', new Response('asset'))
+    const request = fetchEvent('https://example.test/asset.txt', {
+      mode: 'navigate',
+    })
+    listeners.fetch(request.event)
+
+    expect(await (await request.response()).text()).toBe('asset')
+    await request.done()
+  })
+
   it('checks the build ID and updates only when a newer build exists', async () => {
     fetchMock.mockResolvedValueOnce(new Response('build-2'))
     const changed = fetchEvent('https://example.test/api/check')
@@ -288,6 +322,7 @@ function fetchEvent(
     ...base,
     event: base.event,
     hasResponse: () => response !== undefined,
+    request,
     response: () => {
       if (response === undefined) throw new Error('No response was provided')
       return response

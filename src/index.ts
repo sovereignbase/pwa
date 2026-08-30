@@ -8,6 +8,7 @@ import type {
   HTTPSUrl,
   URLPath,
 } from './.types/index.js'
+import { cspHash } from './cspHash/index.js'
 import { documentMarkup } from './htmlDocument/index.js'
 import minifyCss from './minifyCss/index.js'
 import minifyHtml from './minifyHtml/index.js'
@@ -25,6 +26,7 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
     ...new Set([config.defaultLanguage, ...config.alternateLanguages]),
   ]
   const minifyPasses = config.minifyPasses ?? 3
+  const buildIdUrl = '/@sovereignbase/pwa/pwaize-build-id.txt'
   const serviceWorkerPath = '/ServiceWorker'
 
   await mkdir(outputDirectory, { recursive: true })
@@ -64,6 +66,8 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
       'entrypoint' | 'language' | 'manifestUrl' | 'stylesheet'
     >
   > = {}
+  const contentSecurityPolicies: Record<string, string> = {}
+  const installerDocuments: string[] = []
 
   for (const language of languages) {
     const localized = localizeConfig(config, language, languages)
@@ -83,6 +87,17 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
         manifestUrl: manifestPath,
       })
     )
+    const applicationDocument = await documentMarkup({
+      ...localized.document,
+      entrypoint,
+      language,
+      manifestUrl: manifestPath,
+      stylesheet,
+    })
+    contentSecurityPolicies[language] = await contentSecurityPolicy([
+      applicationDocument,
+    ])
+    installerDocuments.push(installerDocument)
     await writeFile(join(languageDirectory, 'index.html'), installerDocument)
 
     if (language === config.defaultLanguage) {
@@ -92,18 +107,30 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
   }
 
   if (config._headersFile === true) {
+    const installerContentSecurityPolicy =
+      await contentSecurityPolicy(installerDocuments)
+    const assetsHeaders =
+      config.assetsDir === undefined
+        ? ''
+        : `/${basename(config.assetsDir.toString())}/*\n  Cache-Control: public, max-age=31536000, immutable\n\n`
     await writeFile(
       join(outputDirectory, '_headers'),
-      `/${serviceWorkerPath.slice(1)}\n  Cache-Control: no-cache\n  Content-Type: text/javascript;charset=UTF-8\n\n/*\n  X-Content-Type-Options: nosniff\n`
+      `/${serviceWorkerPath.slice(1)}\n  Cache-Control: no-cache\n  Content-Type: text/javascript;charset=UTF-8\n\n${buildIdUrl}\n  Cache-Control: no-cache, no-store, must-revalidate\n  Content-Type: text/plain;charset=UTF-8\n\n${assetsHeaders}/*\n  Content-Security-Policy: ${installerContentSecurityPolicy}\n  X-Content-Type-Options: nosniff\n`
     )
   }
 
-  const buildIdUrl = '/@sovereignbase/pwa/pwaize-build-id.txt'
   const generatedFiles = (await publicFiles(outputDirectory)).filter(
     (url) => url !== serviceWorkerPath && url !== buildIdUrl
   )
   const precache = [
     ...new Set([...generatedFiles, ...(config.serviceWorker?.precache ?? [])]),
+  ].sort()
+  const staticRoutes = [
+    ...new Set(
+      precache
+        .map((url) => new URL(url, 'https://pwaize.invalid').pathname)
+        .filter((url) => !url.endsWith('/index.html') && url !== '/index.html')
+    ),
   ].sort()
   const bypassRules = (config.serviceWorker?.bypass ?? []).map(globRule)
   const initialize =
@@ -116,10 +143,12 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
       : functionExpression(config.serviceWorker.waitUntil)
   const buildId = await contentBuildId(outputDirectory, generatedFiles, {
     bypassRules,
+    contentSecurityPolicies,
     documentOptions,
     entrypoint,
     initialize,
     precache,
+    staticRoutes,
     stylesheet,
     waitUntil,
   })
@@ -144,9 +173,11 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
         customInitialize: '__pwaInitialize',
         customWaitUntil: '__pwaWaitUntil',
         defaultLanguage: JSON.stringify(config.defaultLanguage),
+        contentSecurityPolicies: JSON.stringify(contentSecurityPolicies),
         documentOptions: JSON.stringify(documentOptions),
         entrypoint: JSON.stringify(entrypoint),
         precache: JSON.stringify(precache),
+        staticRoutes: JSON.stringify(staticRoutes),
         stylesheet: JSON.stringify(stylesheet),
       },
       passes: minifyPasses,
@@ -157,6 +188,44 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
     join(outputDirectory, serviceWorkerPath.slice(1)),
     serviceWorker
   )
+}
+
+async function contentSecurityPolicy(documents: string[]): Promise<string> {
+  const inlineScripts = documents.flatMap((document) =>
+    [...document.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].map(
+      (match) => match[1]
+    )
+  )
+  const inlineStyles = documents.flatMap((document) =>
+    [...document.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map(
+      (match) => match[1]
+    )
+  )
+  const hashes = async (sources: string[]): Promise<string> =>
+    (
+      await Promise.all(
+        [...new Set(sources.length === 0 ? [''] : sources)].map(cspHash)
+      )
+    )
+      .map((hash) => `'${hash}'`)
+      .join(' ')
+
+  return [
+    `default-src 'self'`,
+    `base-uri 'self'`,
+    `connect-src 'self' https: wss:`,
+    `font-src 'self' data:`,
+    `form-action 'self'`,
+    `frame-ancestors 'none'`,
+    `img-src 'self' data: https:`,
+    `manifest-src 'self'`,
+    `media-src 'self' data: blob: https:`,
+    `object-src 'none'`,
+    `script-src 'self' 'unsafe-inline' ${await hashes(inlineScripts)}`,
+    `style-src 'self' 'unsafe-inline' ${await hashes(inlineStyles)}`,
+    `worker-src 'self' blob:`,
+    'upgrade-insecure-requests',
+  ].join('; ')
 }
 
 async function buildScriptDirectory(

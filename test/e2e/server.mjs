@@ -1,4 +1,4 @@
-import { createReadStream, existsSync, statSync } from 'node:fs'
+import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { extname, join, normalize, resolve, sep } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -15,6 +15,10 @@ if (build.status !== 0) {
 const publicDirectory = resolve('example/dist/web')
 const apiValues = new Map()
 let idleTimer
+const installerContentSecurityPolicy = readFileSync(
+  join(publicDirectory, '_headers'),
+  'utf8'
+).match(/^  Content-Security-Policy: (.+)$/m)?.[1]
 const contentTypes = {
   '.html': 'text/html;charset=UTF-8',
   '.js': 'text/javascript;charset=UTF-8',
@@ -60,6 +64,12 @@ const server = createServer((request, response) => {
       ? 'text/javascript;charset=UTF-8'
       : (contentTypes[extname(path)] ?? 'application/octet-stream')
   )
+  if (installerContentSecurityPolicy !== undefined) {
+    response.setHeader(
+      'content-security-policy',
+      installerContentSecurityPolicy
+    )
+  }
   if (
     url.pathname === '/ServiceWorker' ||
     url.pathname.endsWith('/pwaize-build-id.txt')

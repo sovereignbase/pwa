@@ -11,6 +11,7 @@ declare const bypassRules: ReadonlyArray<{
 declare const customInitialize: (() => void) | undefined
 declare const customWaitUntil: (() => Promise<void>) | undefined
 declare const defaultLanguage: DocumentMarkupOptions['language']
+declare const contentSecurityPolicies: Readonly<Record<string, string>>
 declare const documentOptions: Readonly<
   Record<
     string,
@@ -22,6 +23,7 @@ declare const documentOptions: Readonly<
 >
 declare const entrypoint: string
 declare const precache: readonly string[]
+declare const staticRoutes: readonly string[]
 declare const stylesheet: string
 
 const worker = self as unknown as ServiceWorkerGlobalScope
@@ -43,8 +45,16 @@ worker.addEventListener('fetch', (event) => {
     return
   }
 
+  if (new URL(event.request.url).pathname === buildIdUrl) {
+    event.respondWith(fetch(event.request, { cache: 'no-store' }))
+    return
+  }
+
   const route =
-    event.request.mode === 'navigate' ? routes.document : routes.static
+    event.request.mode === 'navigate' &&
+    !staticRoutes.includes(new URL(event.request.url).pathname)
+      ? routes.document
+      : routes.static
   event.respondWith(route(event))
 })
 
@@ -114,6 +124,7 @@ async function renderDocument(
 
   return new Response(markup, {
     headers: {
+      'content-security-policy': contentSecurityPolicies[language],
       'content-type': 'text/html;charset=UTF-8',
       'x-pwaize-build-id': buildId,
     },

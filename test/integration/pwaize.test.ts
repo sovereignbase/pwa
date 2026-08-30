@@ -71,9 +71,16 @@ describe('pwaize', () => {
       '{"format":1}'
     )
     expect(existsSync(join(web, 'i18n', 'content.d.js'))).toBe(false)
-    expect(await readFile(join(web, '_headers'), 'utf8')).toContain(
-      'Cache-Control: no-cache'
+    const headers = await readFile(join(web, '_headers'), 'utf8')
+    expect(headers).toContain('Cache-Control: no-cache')
+    expect(headers).toContain('/@sovereignbase/pwa/pwaize-build-id.txt')
+    expect(headers).toContain('Content-Type: text/plain;charset=UTF-8')
+    expect(headers).toContain('/assets/*')
+    expect(headers).toContain(
+      'Cache-Control: public, max-age=31536000, immutable'
     )
+    expect(headers).toContain("script-src 'self' 'unsafe-inline' 'sha256-")
+    expect(headers).toContain("style-src 'self' 'unsafe-inline' 'sha256-")
     expect(buildId).toMatch(/^[0-9a-f]{64}$/)
     expect(worker.split(/\r?\n/)).toHaveLength(1)
     expect(worker).toContain(buildId)
@@ -130,6 +137,7 @@ describe('pwaize', () => {
 
   it('supports arrow hooks and an empty localized icon', async () => {
     const config = configuration(project, output)
+    config._headersFile = true
     config.icons.icon512 = {}
     config.serviceWorker = { initialize: () => undefined }
 
@@ -137,6 +145,9 @@ describe('pwaize', () => {
 
     const worker = await readFile(join(output, 'web', 'ServiceWorker'), 'utf8')
     expect(worker).toContain('void 0')
+    expect(
+      await readFile(join(output, 'web', '_headers'), 'utf8')
+    ).not.toContain('max-age=31536000')
   })
 
   it('keeps the build ID stable until build content changes', async () => {

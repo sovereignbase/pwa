@@ -1,14 +1,34 @@
-# @sovereignbase/pwa
+[![npm version](https://img.shields.io/npm/v/@sovereignbase/pwa)](https://www.npmjs.com/package/@sovereignbase/pwa)
+[![JSR](https://jsr.io/badges/@sovereignbase/pwa)](https://jsr.io/@sovereignbase/pwa)
+[![CI](https://github.com/sovereignbase/pwa/actions/workflows/ci.yaml/badge.svg?branch=master)](https://github.com/sovereignbase/pwa/actions/workflows/ci.yaml)
+[![codecov](https://codecov.io/gh/sovereignbase/pwa/branch/master/graph/badge.svg)](https://codecov.io/gh/sovereignbase/pwa)
+[![license](https://img.shields.io/npm/l/@sovereignbase/pwa)](LICENSE)
 
-Build a TypeScript or JavaScript web project into a localized, offline-first and search-engine-optimized PWA. The package has one runtime export: `pwaize`.
+# pwa
 
-## Install
+Build tool for localized, offline-first, search-engine-optimized progressive
+web applications.
+
+## Compatibility
+
+- Runtimes: Node.js and Bun.
+- Input: TypeScript or JavaScript, CSS, assets, and typed language modules.
+- Output: static installers, localized manifests, immutable assets, and a
+  self-rendering Service Worker.
+- Module format: ESM or CJS.
+- Types: bundled `.d.ts`.
+
+## Installation
 
 ```sh
 npm install --save-dev @sovereignbase/pwa
+# or
+pnpm add --save-dev @sovereignbase/pwa
+# or
+yarn add --dev @sovereignbase/pwa
+# or
+bun add --dev @sovereignbase/pwa
 ```
-
-Node.js 20 or newer and Bun are supported.
 
 ## Usage
 
@@ -50,11 +70,27 @@ await pwaize({
 })
 ```
 
-Every semantic value is declared once. Any leaf value that may vary by language accepts either a scalar or a language record. Resolution is requested language, then `defaultLanguage`, then the field's empty/default value. A scalar or just the default-language value is therefore enough for shared content.
+## API
 
-## Typed language modules
+### `pwaize(config)`
 
-Files under `i18nDir` ending in TypeScript or JavaScript are individually bundled, tree-shaken and minified to `.js`. Relative imports inside those modules are bundled. Other files are copied, and declaration files are ignored.
+The package's only runtime export. It bundles, tree-shakes, repeatedly
+minifies, and writes the complete site to `<outDir>/web`.
+
+Values such as titles, descriptions, colors, icons, and metadata are declared
+once. Localizable fields accept either one value or a language record. Lookup
+order is the requested language, `defaultLanguage`, and finally the field's
+empty or default value.
+
+`serviceWorker.bypass` accepts regular expressions and glob strings. `*`
+matches within one path segment, `**` crosses path segments, and an absolute
+pattern matches the complete URL.
+
+## Language modules
+
+TypeScript and JavaScript files under `i18nDir` are individually bundled,
+tree-shaken, and minified to `.js`. Relative imports are bundled, declaration
+files are ignored, and other files are copied.
 
 ```ts
 // src/client/i18n/en.ts
@@ -72,11 +108,10 @@ const content = (await import(`/i18n/${language}.js`)).default
 document.querySelector('h1')!.textContent = content.title
 ```
 
-The non-literal import remains dynamic in the application bundle. For example, `en.ts` becomes `/i18n/en.js` and is included in the Service Worker precache.
+The non-literal import remains dynamic. Generated language modules are included
+in the Service Worker precache.
 
 ## Output
-
-`pwaize` writes to `<outDir>/web`:
 
 ```text
 web/
@@ -92,18 +127,54 @@ web/
 └── @sovereignbase/pwa/pwaize-build-id.txt
 ```
 
-The root installer and manifest belong to `defaultLanguage`. Each language also receives an indexed installer and manifest. Installer pages contain the inline Service Worker installer but not the application stylesheet or entrypoint. The Service Worker renders the actual localized HTML with the bundled application CSS and JavaScript.
+The root installer and manifest use `defaultLanguage`. Each language also gets
+an indexed installer and manifest. Installers contain only the Service Worker
+loader. The Service Worker renders the application document with its localized
+SEO metadata, bundled stylesheet, and bundled entrypoint.
 
-The worker uses stale-while-revalidate caching, precaches generated and copied public files, claims clients on activation, deletes older build caches and checks the deterministic content build ID for updates. `serviceWorker.bypass` accepts regular expressions and glob strings: `*` stays within one URL path segment, `**` crosses segments, and absolute patterns match the complete URL.
+## Behavior
 
-Repeated builds in the same process reuse unchanged Terser, Lightning CSS and HTML minification results. Identical output keeps the same build ID; changing application, language, asset or worker content produces a new ID.
+- JavaScript is bundled and tree-shaken with esbuild, then repeatedly compressed
+  and mangled with Terser.
+- CSS is bundled with esbuild and minified with Lightning CSS.
+- HTML and its inline content are emitted as dense strings.
+- Generated and copied files are precached.
+- Precached static URLs remain files when opened directly in the browser; only
+  application routes use document rendering.
+- Navigation and static resources use stale-while-revalidate caching.
+- Activation deletes old build caches and claims clients.
+- The worker checks a deterministic content build ID and requests an update when
+  deployed content changes.
+- Repeated builds reuse unchanged JavaScript, CSS, and HTML minification results.
+- Generated `_headers` keeps the Service Worker and build ID uncached and gives
+  the assets directory a one-year immutable browser cache.
 
-See [example/entrypoint.js](./example/entrypoint.js) for the sample application and [test/index.js](./test/index.js) for its build driver.
+## Security headers
 
-## Verification
+Generated installers and Service Worker application responses include a
+`Content-Security-Policy`. `script-src` and `style-src` contain SHA-256 hashes
+calculated from the final inline content. They also contain `'unsafe-inline'`
+as a CSP1 fallback; browsers implementing CSP2 or newer ignore that fallback
+when a hash source is present.
 
-```sh
-npm test
-```
+The policy also restricts base URLs, framing, forms, objects, workers, fonts,
+media, images, and network connections. Generated `_headers` adds
+`X-Content-Type-Options: nosniff`.
 
-The suite includes TypeScript checks, 100% Vitest coverage, Node and Bun runtime builds, and Playwright desktop/mobile Chromium behavior tests for installation, localization, offline navigation and Service Worker bypass rules.
+## Example
+
+- Application: [example/entrypoint.js](./example/entrypoint.js)
+- Typed languages: [example/i18n/en.ts](./example/i18n/en.ts) and
+  [example/i18n/fi.ts](./example/i18n/fi.ts)
+- Build driver: [test/index.js](./test/index.js)
+
+## Tests
+
+- Unit and integration tests in Vitest with TypeScript.
+- Browser behavior tests in Playwright with TypeScript.
+- Runtime build tests in Node.js and Bun, including ESM and CJS package wiring.
+- Coverage: 100% statements, branches, functions, and lines.
+
+## License
+
+Apache-2.0
