@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.4](https://github.com/sovereignbase/pwa/compare/v1.0.3...v1.0.4) (2026-08-30)
+
+
+### Bug Fixes
+
+* throttle worker update checks ([a8d147c](https://github.com/sovereignbase/pwa/commit/a8d147c94894683f0f093497d51850f1debccc4d))
+
 ## [1.0.3](https://github.com/sovereignbase/pwa/compare/v1.0.2...v1.0.3) (2026-08-30)
 
 
