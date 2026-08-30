@@ -1,6 +1,6 @@
 {
   "name": "@sovereignbase/pwa",
-  "version": "0.0.2",
+  "version": "1.0.0",
   "description": "Build offline-first, search-engine-optimized progressive web applications.",
   "keywords": [
     "build-tool",
