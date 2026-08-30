@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/sovereignbase/pwa/compare/v1.0.4...v1.1.0) (2026-08-30)
+
+
+### Features
+
+* add Android distribution generation ([14c5616](https://github.com/sovereignbase/pwa/commit/14c56165c3ae1cc30c55a2c590616640f07d533f))
+
 ## [1.0.4](https://github.com/sovereignbase/pwa/compare/v1.0.3...v1.0.4) (2026-08-30)
 
 
