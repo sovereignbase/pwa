@@ -11,6 +11,7 @@ export default async function minifyCss(entrypoint: PathLike): Promise<string> {
     minify: true,
     treeShaking: true,
     write: false,
+    external: ['/assets/*'],
   })
   const { code } = transform({
     code: bundled.outputFiles[0].contents,
