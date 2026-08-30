@@ -15,7 +15,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { minify } from "terser";
 
 /** @returns {import('esbuild').Plugin} */
-const terser = {
+const terser = (outfile) => ({
   name: "terser",
 
   setup(build) {
@@ -32,7 +32,7 @@ const terser = {
       });
     });
   },
-};
+});
 
 export async function pwaize(config: PWAizeConfig) {
   await using temp = await mkdtempDisposable(join(tmpdir(), "pwaize-"));
@@ -129,4 +129,5 @@ export type PWAizeConfig = {
      */
     waitUntil?: () => Promise<void>;
   };
+  _headersFile?: boolean;
 };
