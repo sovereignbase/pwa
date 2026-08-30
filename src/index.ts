@@ -1,6 +1,12 @@
 import type { PathLike } from 'node:fs'
 import type { FileHandle } from 'node:fs/promises'
-import { cp, mkdir, mkdtempDisposable, readFile, writeFile } from 'node:fs/promises'
+import {
+  cp,
+  mkdir,
+  mkdtempDisposable,
+  readFile,
+  writeFile,
+} from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import type { BCP47LanguageTag } from '@sovereignbase/utils'
@@ -27,9 +33,13 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
     if (directory === undefined) continue
 
     const sourceDirectory = directory.toString()
-    await cp(sourceDirectory, join(outputDirectory, basename(sourceDirectory)), {
-      recursive: true,
-    })
+    await cp(
+      sourceDirectory,
+      join(outputDirectory, basename(sourceDirectory)),
+      {
+        recursive: true,
+      }
+    )
   }
 
   const entrypointBuild = await build({
@@ -56,7 +66,9 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
   const serviceWorkerPath = join(temporaryDirectory.path, 'ServiceWorker')
 
   await build({
-    entryPoints: [new URL('./serviceWorker/entrypoint.js', import.meta.url).pathname],
+    entryPoints: [
+      new URL('./serviceWorker/entrypoint.js', import.meta.url).pathname,
+    ],
     outfile: serviceWorkerPath,
     bundle: true,
     minify: true,

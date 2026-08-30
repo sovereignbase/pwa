@@ -45,11 +45,7 @@ worker.addEventListener('install', (event) => {
 
 worker.addEventListener('activate', (event) => {
   event.waitUntil(
-    Promise.all([
-      deleteOldCaches(),
-      worker.clients.claim(),
-      backgroundStartup,
-    ])
+    Promise.all([deleteOldCaches(), worker.clients.claim(), backgroundStartup])
   )
 })
 
@@ -100,7 +96,9 @@ function renderDocument(request: Request): Response {
 }
 
 function documentLanguage(request: Request): string {
-  const pathLanguage = new URL(request.url).pathname.split('/').filter(Boolean)[0]
+  const pathLanguage = new URL(request.url).pathname
+    .split('/')
+    .filter(Boolean)[0]
   if (pathLanguage in documents) return pathLanguage
 
   const accepted = request.headers.get('accept-language') ?? ''
