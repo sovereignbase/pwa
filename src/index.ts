@@ -48,7 +48,7 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
     ...new Set([config.defaultLanguage, ...config.alternateLanguages]),
   ]
   const minifyPasses = 3
-  const buildIdUrl = '/@sovereignbase/pwa/pwaize-build-id.txt'
+  const buildIdUrl = '/.sovereignbase/pwa/pwaize-build-id.txt'
   const serviceWorkerPath = '/ServiceWorker'
 
   await mkdir(outputDirectory, { recursive: true })
@@ -195,7 +195,7 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
     stylesheet,
     waitUntil,
   })
-  const buildIdDirectory = join(outputDirectory, '@sovereignbase', 'pwa')
+  const buildIdDirectory = join(outputDirectory, '.sovereignbase', 'pwa')
   await mkdir(buildIdDirectory, { recursive: true })
   await writeFile(join(buildIdDirectory, 'pwaize-build-id.txt'), buildId)
   const compiledServiceWorker = new URL(

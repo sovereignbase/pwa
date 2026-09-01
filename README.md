@@ -168,7 +168,7 @@ web/
 ├── fi/manifest.webmanifest
 ├── assets/...
 ├── i18n/*.js
-└── @sovereignbase/pwa/pwaize-build-id.txt
+└── .sovereignbase/pwa/pwaize-build-id.txt
 
 android/                       # only with distribution.android
 ├── project/                   # generated Bubblewrap project

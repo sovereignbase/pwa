@@ -117,7 +117,7 @@ test('serves build and asset URLs directly instead of application HTML', async (
       document.documentElement.dataset.ready === 'true'
   )
 
-  const response = await page.goto('/@sovereignbase/pwa/pwaize-build-id.txt')
+  const response = await page.goto('/.sovereignbase/pwa/pwaize-build-id.txt')
   expect(response?.headers()['content-type']).toContain('text/plain')
   await expect(page.locator('body')).toHaveText(/^[0-9a-f]{64}$/)
 

@@ -53,7 +53,7 @@ describe('pwaize', () => {
     const finnish = await readFile(join(web, 'fi', 'index.html'), 'utf8')
     const worker = await readFile(join(web, 'ServiceWorker'), 'utf8')
     const buildId = await readFile(
-      join(web, '@sovereignbase', 'pwa', 'pwaize-build-id.txt'),
+      join(web, '.sovereignbase', 'pwa', 'pwaize-build-id.txt'),
       'utf8'
     )
 
@@ -80,7 +80,7 @@ describe('pwaize', () => {
     expect(existsSync(join(web, 'i18n', 'content.d.js'))).toBe(false)
     const headers = await readFile(join(web, '_headers'), 'utf8')
     expect(headers).toContain('Cache-Control: no-cache')
-    expect(headers).toContain('/@sovereignbase/pwa/pwaize-build-id.txt')
+    expect(headers).toContain('/.sovereignbase/pwa/pwaize-build-id.txt')
     expect(headers).toContain('Content-Type: text/plain;charset=UTF-8')
     expect(headers).toContain('/assets/*')
     expect(headers).toContain(
@@ -102,6 +102,7 @@ describe('pwaize', () => {
     expect(buildId).toMatch(/^[0-9a-f]{64}$/)
     expect(worker.split(/\r?\n/)).toHaveLength(1)
     expect(worker).toContain(buildId)
+    expect(worker).toContain('/.sovereignbase/pwa/pwaize-build-id.txt')
     expect(worker).toContain('registration.update')
     expect(worker).toContain('clients.claim')
     expect(worker).toContain('/extra-resource')
@@ -198,7 +199,7 @@ describe('pwaize', () => {
     const buildIdPath = join(
       output,
       'web',
-      '@sovereignbase',
+      '.sovereignbase',
       'pwa',
       'pwaize-build-id.txt'
     )
