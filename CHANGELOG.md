@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/sovereignbase/pwa/compare/v1.1.0...v1.1.1) (2026-09-01)
+
+
+### Bug Fixes
+
+* use a canonical build marker URL ([9dc9e05](https://github.com/sovereignbase/pwa/commit/9dc9e05a6a8ab512a206247cb6e92f5fbdb14326))
+
 ## [1.1.0](https://github.com/sovereignbase/pwa/compare/v1.0.4...v1.1.0) (2026-09-01)
 
 
