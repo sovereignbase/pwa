@@ -192,11 +192,12 @@ SEO metadata, bundled stylesheet, and bundled entrypoint.
 - Generated and copied files are precached.
 - Precached static URLs remain files when opened directly in the browser; only
   application routes use document rendering.
-- Navigation and static resources use stale-while-revalidate caching.
+- Application documents are rendered on every navigation and are not stored in
+  Cache Storage. Static resources use stale-while-revalidate caching.
 - Activation deletes old build caches and claims clients.
-- The worker checks a deterministic content build ID during fetch events,
-  throttled to at most once per minute, and requests an update when deployed
-  content has changed.
+- The worker checks a deterministic content build ID in the background after
+  every application navigation and requests an update when deployed content has
+  changed.
 - Repeated builds reuse unchanged JavaScript, CSS, and HTML minification results.
 - Generated `_headers` keeps the Service Worker and build ID uncached and gives
   the assets directory a one-year immutable browser cache.

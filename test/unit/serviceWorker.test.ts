@@ -137,7 +137,7 @@ describe('generated Service Worker behavior', () => {
     expect(worker.skipWaiting).toHaveBeenCalledOnce()
   })
 
-  it('renders localized navigations and refreshes cached documents', async () => {
+  it('renders localized navigations without caching documents', async () => {
     const finnish = fetchEvent('https://example.test/fi/', {
       mode: 'navigate',
     })
@@ -151,17 +151,43 @@ describe('generated Service Worker behavior', () => {
     expect(first.headers.get('cross-origin-opener-policy')).toBe('same-origin')
     expect(first.headers.get('x-pwaize-build-id')).toBe('build-1')
 
-    responses.set(
-      'https://example.test/en/cached?__pwaize_language=en',
-      new Response('stale document')
-    )
-    const cached = fetchEvent('https://example.test/en/cached', {
+    const rendered = fetchEvent('https://example.test/en/rendered', {
       mode: 'navigate',
     })
-    listeners.fetch(cached.event)
-    expect(await (await cached.response()).text()).toBe('stale document')
-    await cached.done()
-    expect(cache.put).toHaveBeenCalled()
+    listeners.fetch(rendered.event)
+    expect(await (await rendered.response()).text()).toContain(
+      '<html lang="en">'
+    )
+    await rendered.done()
+    expect(cache.put).not.toHaveBeenCalled()
+  })
+
+  it('checks the build ID after every rendered navigation only', async () => {
+    const first = fetchEvent('https://example.test/en/', { mode: 'navigate' })
+    listeners.fetch(first.event)
+    await first.response()
+    await first.done()
+
+    const second = fetchEvent('https://example.test/fi/', { mode: 'navigate' })
+    listeners.fetch(second.event)
+    await second.response()
+    await second.done()
+
+    const staticResource = fetchEvent('https://example.test/asset.txt')
+    listeners.fetch(staticResource.event)
+    await staticResource.response()
+    await staticResource.done()
+
+    const directBuildId = fetchEvent('https://example.test/build-id', {
+      mode: 'navigate',
+    })
+    listeners.fetch(directBuildId.event)
+    await directBuildId.response()
+    await directBuildId.done()
+
+    expect(
+      fetchMock.mock.calls.filter(([input]) => input === '/build-id')
+    ).toHaveLength(2)
   })
 
   it('negotiates exact, base, and default Accept-Language values', async () => {
@@ -281,10 +307,7 @@ describe('generated Service Worker behavior', () => {
     await request.done()
   })
 
-  it('throttles build-ID checks and updates only when a newer build exists', async () => {
-    const dateNow = vi
-      .spyOn(Date, 'now')
-      .mockReturnValue(Number.MAX_SAFE_INTEGER - 240_000)
+  it('updates only when a build-ID check finds a newer build', async () => {
     fetchMock.mockResolvedValueOnce(new Response('build-2'))
     await checkForUpdate(
       worker as unknown as ServiceWorkerGlobalScope,
@@ -293,15 +316,14 @@ describe('generated Service Worker behavior', () => {
     )
     expect(worker.registration.update).toHaveBeenCalledOnce()
 
-    fetchMock.mockClear()
+    fetchMock.mockResolvedValueOnce(new Response('build-1'))
     await checkForUpdate(
       worker as unknown as ServiceWorkerGlobalScope,
       '/build-id',
       'build-1'
     )
-    expect(fetchMock).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenCalledWith('/build-id', { cache: 'no-store' })
 
-    dateNow.mockReturnValue(Number.MAX_SAFE_INTEGER - 180_000)
     fetchMock.mockResolvedValueOnce(new Response('missing', { status: 404 }))
     await checkForUpdate(
       worker as unknown as ServiceWorkerGlobalScope,
@@ -310,16 +332,6 @@ describe('generated Service Worker behavior', () => {
     )
     expect(worker.registration.update).toHaveBeenCalledOnce()
 
-    dateNow.mockReturnValue(Number.MAX_SAFE_INTEGER - 120_000)
-    fetchMock.mockResolvedValueOnce(new Response('build-1'))
-    await checkForUpdate(
-      worker as unknown as ServiceWorkerGlobalScope,
-      '/build-id',
-      'build-1'
-    )
-    expect(worker.registration.update).toHaveBeenCalledOnce()
-
-    dateNow.mockReturnValue(Number.MAX_SAFE_INTEGER - 60_000)
     fetchMock.mockRejectedValueOnce(new Error('offline'))
     await checkForUpdate(
       worker as unknown as ServiceWorkerGlobalScope,
@@ -327,7 +339,6 @@ describe('generated Service Worker behavior', () => {
       'build-1'
     )
     expect(worker.registration.update).toHaveBeenCalledOnce()
-    dateNow.mockRestore()
   })
 })
 

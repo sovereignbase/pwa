@@ -42,12 +42,7 @@ const routes = Object.freeze({
 })
 
 worker.addEventListener('fetch', (event) => {
-  event.waitUntil(
-    Promise.all([
-      backgroundStartup,
-      checkForUpdate(worker, buildIdUrl, buildId),
-    ])
-  )
+  event.waitUntil(backgroundStartup)
 
   if (event.request.method !== 'GET' || bypassesServiceWorker(event.request)) {
     return
@@ -63,6 +58,9 @@ worker.addEventListener('fetch', (event) => {
     event.request.mode === 'navigate' && !staticRoutes.includes(pathname)
       ? routes.document
       : routes.static
+  if (route === routes.document) {
+    event.waitUntil(checkForUpdate(worker, buildIdUrl, buildId))
+  }
   event.respondWith(route(event))
 })
 
@@ -88,18 +86,7 @@ worker.addEventListener('message', (event) => {
 
 async function buildDocumentResponse(event: FetchEvent): Promise<Response> {
   const language = documentLanguage(event.request)
-  const cache = await caches.open(cacheName)
-  const cacheKey = documentCacheKey(event.request, language)
-  const cached = await cache.match(cacheKey)
-  const rendered = renderDocument(language).then(async (response) => {
-    await cache.put(cacheKey, response.clone())
-    return response
-  })
-
-  if (cached === undefined) return rendered
-
-  event.waitUntil(rendered)
-  return cached
+  return renderDocument(language)
 }
 
 async function negotiateCache(event: FetchEvent): Promise<Response> {
@@ -161,15 +148,6 @@ async function renderDocument(
       'x-pwaize-build-id': buildId,
     },
   })
-}
-
-function documentCacheKey(
-  request: Request,
-  language: DocumentMarkupOptions['language']
-): Request {
-  const url = new URL(request.url)
-  url.searchParams.set('__pwaize_language', language)
-  return new Request(url)
 }
 
 function documentLanguage(request: Request): DocumentMarkupOptions['language'] {
