@@ -28,6 +28,12 @@ describe('pwaize', () => {
     const config = configuration(project, output)
     config._headersFile = true
     config.assetsDir = join(project, 'assets')
+    config.contentSecurityPolicy = {
+      'connect-src': ['https://api.stripe.com', 'https://maps.googleapis.com'],
+      'frame-src': ['https://checkout.stripe.com', 'https://*.js.stripe.com'],
+      'img-src': ['https://*.stripe.com'],
+      'script-src': ['https://js.stripe.com', 'https://maps.googleapis.com'],
+    }
     config.i18nDir = join(project, 'i18n')
     config.serviceWorker = {
       bypass: [
@@ -91,6 +97,22 @@ describe('pwaize', () => {
     expect(headers).toContain("style-src 'self' 'unsafe-inline' 'sha256-")
     expect(headers).toContain("'strict-dynamic'")
     expect(headers).toContain("require-trusted-types-for 'script'")
+    expect(headers).toContain(
+      "connect-src 'self' https: wss: https://api.stripe.com https://maps.googleapis.com"
+    )
+    expect(headers).toContain(
+      'frame-src https://checkout.stripe.com https://*.js.stripe.com'
+    )
+    expect(headers).toContain(
+      "img-src 'self' data: https: https://*.stripe.com"
+    )
+    expect(headers).toContain(
+      'https://js.stripe.com https://maps.googleapis.com'
+    )
+    expect(headers).toContain("script-src-elem 'self' 'unsafe-inline' 'sha256-")
+    expect(headers).toContain(
+      'https://js.stripe.com https://maps.googleapis.com; style-src'
+    )
     expect(headers).toContain('Cross-Origin-Opener-Policy: same-origin')
     expect(headers).toContain('Cross-Origin-Resource-Policy: same-origin')
     expect(headers).toContain('Strict-Transport-Security: max-age=63072000')
@@ -110,6 +132,8 @@ describe('pwaize', () => {
     expect(worker).toContain('/i18n/')
     expect(worker).toContain('background:#fff')
     expect(worker).toContain('dataset.integration')
+    expect(worker).toContain('https://api.stripe.com')
+    expect(worker).toContain('https://checkout.stripe.com')
   })
 
   it('builds with scalar defaults and without optional output', async () => {

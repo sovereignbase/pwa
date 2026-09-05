@@ -7,6 +7,7 @@ import { baseSecurityHeaders } from './baseSecurityHeaders/index.js'
 import { buildScriptDirectory } from './buildScriptDirectory/index.js'
 import { contentBuildId } from './contentBuildId/index.js'
 import { contentSecurityPolicy } from './contentSecurityPolicy/index.js'
+import type { ContentSecurityPolicySources } from './contentSecurityPolicy/index.js'
 import {
   buildAndroidDistribution,
   type DistributionOptions,
@@ -32,6 +33,10 @@ export type {
   AndroidDistributionOptions,
   DistributionOptions,
 } from './distribution/android/index.js'
+export type {
+  ContentSecurityPolicyDirective,
+  ContentSecurityPolicySources,
+} from './contentSecurityPolicy/index.js'
 
 /**
  * Builds a localized, offline-first PWA into `<outDir>/web`.
@@ -117,7 +122,10 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
       stylesheet,
     })
     documentSecurityHeaders[language] = securityHeaders(
-      await contentSecurityPolicy([applicationDocument])
+      await contentSecurityPolicy(
+        [applicationDocument],
+        config.contentSecurityPolicy
+      )
     )
     installerDocuments.push(installerDocument)
     await writeFile(join(languageDirectory, 'index.html'), installerDocument)
@@ -129,8 +137,10 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
   }
 
   if (config._headersFile === true) {
-    const installerContentSecurityPolicy =
-      await contentSecurityPolicy(installerDocuments)
+    const installerContentSecurityPolicy = await contentSecurityPolicy(
+      installerDocuments,
+      config.contentSecurityPolicy
+    )
     const installerRoutes = [
       '/',
       '/index.html',
@@ -253,6 +263,7 @@ export type PWAizeConfig = {
   bodyMarkup?: Localized<string>
   canonicalLanguage: BCP47LanguageTag
   colorScheme?: Localized<'dark' | 'dark light' | 'light' | 'light dark'>
+  contentSecurityPolicy?: ContentSecurityPolicySources
   defaultLanguage: BCP47LanguageTag
   description: Localized<string>
   distribution?: DistributionOptions

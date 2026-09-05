@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { cspHash } from '../../src/cspHash/index.js'
+import { contentSecurityPolicy } from '../../src/contentSecurityPolicy/index.js'
 import { documentMarkup } from '../../src/htmlDocument/index.js'
 import {
   jsonLDMarkup,
@@ -63,6 +64,26 @@ describe('markup builders', () => {
     await expect(cspHash('hello')).resolves.toBe(
       'sha256-LPJNul+wow4m6DsqxbninhsWHlwfp0JecwQzYpOLmCQ='
     )
+  })
+
+  it('extends CSP source directives and removes a conflicting none source', async () => {
+    const policy = await contentSecurityPolicy([], {
+      'connect-src': ['https://api.example.test', 'https://api.example.test'],
+      'frame-ancestors': ['https://admin.example.test'],
+      'frame-src': ['https://checkout.example.test'],
+      'script-src': ['https://js.example.test'],
+      'script-src-elem': ['https://elements.example.test'],
+    })
+
+    expect(policy).toContain(
+      "connect-src 'self' https: wss: https://api.example.test"
+    )
+    expect(policy).toContain('frame-ancestors https://admin.example.test')
+    expect(policy).toContain('frame-src https://checkout.example.test')
+    expect(policy).toMatch(
+      /script-src-elem [^;]*https:\/\/js\.example\.test https:\/\/elements\.example\.test/
+    )
+    expect(policy).not.toContain("frame-ancestors 'none'")
   })
 
   it('renders compact JSON-LD with optional application metadata', () => {

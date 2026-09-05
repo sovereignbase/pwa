@@ -41,6 +41,12 @@ await pwaize({
   applicationName: 'Example',
   assetsDir: './src/client/assets',
   canonicalLanguage: 'en',
+  contentSecurityPolicy: {
+    'connect-src': ['https://api.stripe.com', 'https://maps.googleapis.com'],
+    'frame-src': ['https://checkout.stripe.com', 'https://*.js.stripe.com'],
+    'img-src': ['https://*.stripe.com'],
+    'script-src': ['https://js.stripe.com', 'https://maps.googleapis.com'],
+  },
   defaultLanguage: 'en',
   description: {
     en: 'An offline-first example.',
@@ -211,6 +217,26 @@ as a CSP1 fallback; browsers implementing CSP2 or newer ignore that fallback
 when a hash source is present. Modern browsers additionally receive
 `strict-dynamic`, blocked inline script and style attributes, and required
 Trusted Types for script sinks.
+
+Use `contentSecurityPolicy` to append source expressions to generated source
+directives. Existing defaults and generated inline hashes are retained, and
+duplicate sources are removed. A configured source also replaces a conflicting
+`'none'` default for that directive. For example:
+
+```ts
+contentSecurityPolicy: {
+  'connect-src': ['https://api.example.com'],
+  'frame-src': ['https://checkout.example.com', 'https://*.example.com'],
+  'img-src': ['https://*.example.com'],
+  'script-src': ['https://js.example.com'],
+}
+```
+
+These additions apply to both generated installers and application documents
+served by the Service Worker. Source expressions are written in CSP syntax;
+quote keywords such as `'self'` and `'report-sample'`. `script-src` additions
+are also appended to `script-src-elem`, so configured external scripts are not
+blocked by the generated element-specific directive.
 
 The policy also restricts base URLs, framing, forms, objects, workers, fonts,
 media, images, and network connections. Generated `_headers` adds strong HSTS,

@@ -34,6 +34,8 @@ const worker = {
 }
 const initialize = vi.fn()
 const startup = vi.fn(async () => undefined)
+let initialized = false
+let started = false
 const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
   const url = typeof input === 'string' ? input : input.toString()
   if (url === '/build-id') return new Response('build-1')
@@ -73,6 +75,8 @@ describe('generated Service Worker behavior', () => {
     vi.stubGlobal('staticRoutes', ['/asset.txt'])
     vi.stubGlobal('stylesheet', 'body{margin:0}')
     await import('../../src/serviceWorker/entrypoint.js')
+    initialized = initialize.mock.calls.length === 1
+    started = startup.mock.calls.length === 1
   })
 
   beforeEach(() => {
@@ -100,8 +104,8 @@ describe('generated Service Worker behavior', () => {
   })
 
   it('initializes and registers all lifecycle listeners', () => {
-    expect(initialize).toHaveBeenCalledOnce()
-    expect(startup).toHaveBeenCalledOnce()
+    expect(initialized).toBe(true)
+    expect(started).toBe(true)
     expect(Object.keys(listeners).sort()).toEqual([
       'activate',
       'fetch',
