@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/sovereignbase/pwa/compare/v1.2.0...v1.2.1) (2026-09-05)
+
+
+### Bug Fixes
+
+* exclude installers from precache ([15e27ed](https://github.com/sovereignbase/pwa/commit/15e27ed5b7193cd032b64c7934d46e56d84f9f2c))
+
 ## [1.2.0](https://github.com/sovereignbase/pwa/compare/v1.1.1...v1.2.0) (2026-09-05)
 
 
