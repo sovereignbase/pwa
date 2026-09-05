@@ -184,8 +184,9 @@ android/                       # only with distribution.android
 
 The root installer and manifest use `defaultLanguage`. Each language also gets
 an indexed installer and manifest. Installers contain only the Service Worker
-loader. The Service Worker renders the application document with its localized
-SEO metadata, bundled stylesheet, and bundled entrypoint.
+loader and are never precached. The Service Worker renders the application
+document with its localized SEO metadata, bundled stylesheet, and bundled
+entrypoint.
 
 ## Behavior
 
@@ -195,7 +196,7 @@ SEO metadata, bundled stylesheet, and bundled entrypoint.
 - HTML and its inline content are emitted as dense strings.
 - Every localized document includes a standard description meta tag together
   with canonical, `hreflang`, JSON-LD, Open Graph, and Twitter metadata.
-- Generated and copied files are precached.
+- Generated and copied non-installer files are precached.
 - Precached static URLs remain files when opened directly in the browser; only
   application routes use document rendering.
 - Application documents are rendered on every navigation and are not stored in

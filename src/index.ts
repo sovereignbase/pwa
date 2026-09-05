@@ -177,12 +177,15 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
   )
   const precache = [
     ...new Set([...generatedFiles, ...(config.serviceWorker?.precache ?? [])]),
-  ].sort()
+  ]
+    .filter((url) => {
+      const pathname = new URL(url, 'https://pwaize.invalid').pathname
+      return !pathname.endsWith('/index.html')
+    })
+    .sort()
   const staticRoutes = [
     ...new Set(
-      precache
-        .map((url) => new URL(url, 'https://pwaize.invalid').pathname)
-        .filter((url) => !url.endsWith('/index.html') && url !== '/index.html')
+      precache.map((url) => new URL(url, 'https://pwaize.invalid').pathname)
     ),
   ].sort()
   const bypassRules = (config.serviceWorker?.bypass ?? []).map(globRule)

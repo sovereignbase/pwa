@@ -71,7 +71,7 @@ describe('generated Service Worker behavior', () => {
       fi: documentOptions('fi', 'fi_FI'),
     })
     vi.stubGlobal('entrypoint', 'document.documentElement.dataset.ready="true"')
-    vi.stubGlobal('precache', ['/index.html', '/asset.txt'])
+    vi.stubGlobal('precache', ['/asset.txt'])
     vi.stubGlobal('staticRoutes', ['/asset.txt'])
     vi.stubGlobal('stylesheet', 'body{margin:0}')
     await import('../../src/serviceWorker/entrypoint.js')
@@ -118,7 +118,7 @@ describe('generated Service Worker behavior', () => {
     const install = serviceWorkerEvent()
     listeners.install(install.event)
     await install.done()
-    expect(cache.addAll).toHaveBeenCalledWith(['/index.html', '/asset.txt'])
+    expect(cache.addAll).toHaveBeenCalledWith(['/asset.txt'])
     expect(worker.skipWaiting).toHaveBeenCalledOnce()
 
     const activate = serviceWorkerEvent()
