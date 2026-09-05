@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/sovereignbase/pwa/compare/v1.1.1...v1.2.0) (2026-09-05)
+
+
+### Features
+
+* support custom CSP sources ([0838a45](https://github.com/sovereignbase/pwa/commit/0838a45d74c17d8992e97383da769ecbd398ec4b))
+
 ## [1.1.1](https://github.com/sovereignbase/pwa/compare/v1.1.0...v1.1.1) (2026-09-01)
 
 
