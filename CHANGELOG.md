@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.2](https://github.com/sovereignbase/pwa/compare/v1.2.1...v1.2.2) (2026-11-16)
+
+
+### Bug Fixes
+
+* respect CSP frame-ancestors when generating X-Frame-Options ([dfa3ec7](https://github.com/sovereignbase/pwa/commit/dfa3ec70a6ae2f6d5681c18908784b90f4b21133))
+
 ## [1.2.1](https://github.com/sovereignbase/pwa/compare/v1.2.0...v1.2.1) (2026-09-05)
 
 
