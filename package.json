@@ -49,31 +49,31 @@
   },
   "dependencies": {
     "@sovereignbase/bytecodec": "^2.0.1",
-    "@sovereignbase/utils": "^2.3.0",
+    "@sovereignbase/utils": "^2.7.0",
     "esbuild": "^0.28.2",
-    "fs-extra": "^11.4.0",
+    "fs-extra": "^11.4.1",
     "html-minifier-terser": "^7.2.0",
     "lightningcss": "^1.33.0",
     "terser": "^5.51.2"
   },
   "devDependencies": {
-    "@bubblewrap/core": "^1.25.0",
-    "@commitlint/cli": "^21.2.2",
-    "@commitlint/config-conventional": "^21.2.2",
-    "@playwright/test": "^1.63.0",
+    "@bubblewrap/core": "^1.27.0",
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
+    "@playwright/test": "^1.65.1",
     "@types/html-minifier-terser": "^7.0.2",
-    "@types/node": "^26.4.1",
-    "@vitest/coverage-v8": "^5.0.0",
+    "@types/node": "^26.6.6",
+    "@vitest/coverage-v8": "^5.1.0",
     "husky": "^9.1.7",
-    "playwright": "^1.63.0",
-    "prettier": "^3.9.6",
-    "tsdown": "^0.23.0",
+    "playwright": "^1.65.1",
+    "prettier": "^3.10.1",
+    "tsdown": "^0.23.7",
     "typedoc": "^0.28.20",
-    "typescript": "^5.9.3",
-    "vitest": "^5.0.0"
+    "typescript": "^6.0.3",
+    "vitest": "^5.1.0"
   },
   "peerDependencies": {
-    "@bubblewrap/core": ">=1.25.0"
+    "@bubblewrap/core": ">=1.27.0"
   },
   "peerDependenciesMeta": {
     "@bubblewrap/core": {

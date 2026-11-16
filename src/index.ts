@@ -157,7 +157,7 @@ export async function pwaize(config: PWAizeConfig): Promise<void> {
         : `/${basename(config.assetsDir.toString())}/*\n  Cache-Control: public, max-age=31536000, immutable\n\n`
     await writeFile(
       join(outputDirectory, '_headers'),
-      `/${serviceWorkerPath.slice(1)}\n  Cache-Control: no-cache\n  Content-Type: text/javascript;charset=UTF-8\n\n${buildIdUrl}\n  Cache-Control: no-cache, no-store, must-revalidate\n  Content-Type: text/plain;charset=UTF-8\n\n${assetsHeaders}${installerRoutes}\n/*\n${headersMarkup(baseSecurityHeaders())}`
+      `/${serviceWorkerPath.slice(1)}\n  Cache-Control: no-cache\n  Content-Type: text/javascript;charset=UTF-8\n\n${buildIdUrl}\n  Cache-Control: no-cache, no-store, must-revalidate\n  Content-Type: text/plain;charset=UTF-8\n\n${assetsHeaders}${installerRoutes}\n/*\n${headersMarkup(baseSecurityHeaders(installerContentSecurityPolicy))}`
     )
   }
 

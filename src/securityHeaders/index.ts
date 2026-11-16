@@ -6,6 +6,6 @@ export function securityHeaders(
 ): Record<string, string> {
   return {
     'Content-Security-Policy': contentSecurityPolicy,
-    ...baseSecurityHeaders(),
+    ...baseSecurityHeaders(contentSecurityPolicy),
   }
 }

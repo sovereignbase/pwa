@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { pwaize, type PWAizeConfig } from '../../src/index.js'
+import { baseSecurityHeaders } from '../../src/baseSecurityHeaders/index.js'
 
 const buildAndroidDistribution = vi.hoisted(() => vi.fn())
 
@@ -116,6 +117,7 @@ describe('pwaize', () => {
     expect(headers).toContain('Cross-Origin-Opener-Policy: same-origin')
     expect(headers).toContain('Cross-Origin-Resource-Policy: same-origin')
     expect(headers).toContain('Strict-Transport-Security: max-age=63072000')
+    expect(headers).toContain("frame-ancestors 'none'")
     expect(headers).toContain('X-Frame-Options: DENY')
     expect(headers.split('\n/*\n').at(-1)).not.toContain(
       'Content-Security-Policy'
@@ -137,6 +139,40 @@ describe('pwaize', () => {
     expect(worker).toContain('dataset.integration')
     expect(worker).toContain('https://api.stripe.com')
     expect(worker).toContain('https://checkout.stripe.com')
+  })
+
+  it('allows framing from any origin when configured', async () => {
+    const config = configuration(project, output)
+    config._headersFile = true
+    config.contentSecurityPolicy = {
+      'frame-ancestors': ['*'],
+    }
+
+    await pwaize(config)
+
+    const headers = await readFile(join(output, 'web', '_headers'), 'utf8')
+
+    expect(headers).toContain('frame-ancestors *')
+    expect(headers).not.toContain('X-Frame-Options:')
+  })
+
+  it('derives X-Frame-Options from frame-ancestors', () => {
+    expect(baseSecurityHeaders()['X-Frame-Options']).toBe('DENY')
+    expect(baseSecurityHeaders("default-src 'self'")['X-Frame-Options']).toBe(
+      'DENY'
+    )
+    expect(
+      baseSecurityHeaders("frame-ancestors 'none'")['X-Frame-Options']
+    ).toBe('DENY')
+    expect(
+      baseSecurityHeaders("frame-ancestors 'self'")['X-Frame-Options']
+    ).toBe('SAMEORIGIN')
+    expect(baseSecurityHeaders('frame-ancestors *')).not.toHaveProperty(
+      'X-Frame-Options'
+    )
+    expect(
+      baseSecurityHeaders('frame-ancestors https://example.com')
+    ).not.toHaveProperty('X-Frame-Options')
   })
 
   it('builds with scalar defaults and without optional output', async () => {
